@@ -1,0 +1,40 @@
+{
+  "name": "wppbot",
+  "version": "1.0.0",
+  "description": "Bot avançado para WhatsApp que participa de gincanas em grupo respondendo perguntas do líder usando IA (OpenAI/Gemini).",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop wppbot",
+    "pm2:logs": "pm2 logs wppbot",
+    "pm2:restart": "pm2 restart wppbot"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "openai",
+    "gemini",
+    "gincana",
+    "ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "chalk": "^5.3.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-cache": "^5.1.2",
+    "openai": "^6.38.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "socket.io": "^4.8.3",
+    "whatsapp-web.js": "^1.34.7"
+  }
+}

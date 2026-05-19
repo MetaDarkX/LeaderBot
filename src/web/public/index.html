@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wppbot · Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🤖%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🤖</span>
+        <div>
+          <h1>wppbot</h1>
+          <p class="muted small">Dashboard de gincana</p>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="status-pill" id="statusPill">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">conectando…</span>
+        </div>
+        <div class="uptime muted small" id="uptime">uptime 0s</div>
+        <button class="btn btn-warn" id="pauseBtn">Pausar</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- QR Code / Identidade -->
+      <section class="card" id="authCard">
+        <h2>Conexão WhatsApp</h2>
+        <div id="qrBox" class="qr-box hidden">
+          <img id="qrImg" alt="QR Code" />
+          <p class="muted small">
+            Abra <b>WhatsApp → Aparelhos conectados → Conectar um aparelho</b>
+            e escaneie o QR Code acima.
+          </p>
+        </div>
+        <div id="meBox" class="hidden">
+          <div class="row">
+            <span class="muted">Logado como</span>
+            <b id="meName">—</b>
+          </div>
+          <div class="row">
+            <span class="muted">Número</span>
+            <code id="meNumber">—</code>
+          </div>
+        </div>
+        <div id="loadingBox" class="muted">Aguardando inicialização…</div>
+      </section>
+
+      <!-- Estatísticas -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Métricas</h2>
+          <button class="btn btn-ghost btn-sm" id="resetStatsBtn">resetar</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><label>Recebidas</label><strong id="stReceived">0</strong></div>
+          <div class="stat"><label>Respondidas</label><strong id="stAnswered">0</strong></div>
+          <div class="stat"><label>Cache hits</label><strong id="stCache">0</strong></div>
+          <div class="stat"><label>IA chamadas</label><strong id="stAi">0</strong></div>
+          <div class="stat"><label>Fallbacks</label><strong id="stFallback">0</strong></div>
+          <div class="stat"><label>Latência média</label><strong id="stAvg">0ms</strong></div>
+          <div class="stat"><label>Última latência</label><strong id="stLast">0ms</strong></div>
+          <div class="stat"><label>Pausa (ignoradas)</label><strong id="stPause">0</strong></div>
+          <div class="stat"><label>Cooldown</label><strong id="stCool">0</strong></div>
+          <div class="stat"><label>Filtradas</label><strong id="stFilter">0</strong></div>
+        </div>
+      </section>
+
+      <!-- Configuração -->
+      <section class="card span-2">
+        <h2>Configuração em runtime</h2>
+        <div class="form-grid">
+          <label class="field">
+            <span>Líderes autorizados</span>
+            <textarea id="leadersInput" rows="3"
+              placeholder="5511999999999, 5521988888888"></textarea>
+            <small class="muted">Um por linha ou separados por vírgula. Apenas dígitos.</small>
+          </label>
+
+          <label class="field">
+            <span>Grupos permitidos</span>
+            <textarea id="groupsInput" rows="3"
+              placeholder="120363025XXXXXXXXX@g.us"></textarea>
+            <small class="muted">Vazio = qualquer grupo do líder.</small>
+          </label>
+
+          <label class="field">
+            <span>Cooldown (ms)</span>
+            <input id="cooldownInput" type="number" min="0" step="100" />
+          </label>
+
+          <label class="field">
+            <span>Tamanho máx. da pergunta</span>
+            <input id="maxLenInput" type="number" min="10" step="10" />
+          </label>
+
+          <label class="field span-2">
+            <span>Resposta de fallback</span>
+            <input id="fallbackInput" type="text" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="saveConfigBtn">Salvar configurações</button>
+          <button class="btn btn-ghost" id="reloadConfigBtn">Recarregar</button>
+          <button class="btn btn-ghost" id="clearCacheBtn">Limpar cache</button>
+          <button class="btn btn-ghost" id="resetCooldownBtn">Resetar cooldown</button>
+        </div>
+      </section>
+
+      <!-- Grupos -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Grupos onde estou</h2>
+          <button class="btn btn-ghost btn-sm" id="refreshGroupsBtn">atualizar</button>
+        </div>
+        <ul class="group-list" id="groupList">
+          <li class="muted small">Carregando…</li>
+        </ul>
+      </section>
+
+      <!-- Teste de IA -->
+      <section class="card">
+        <h2>Testar IA</h2>
+        <p class="muted small">Envia uma pergunta direto para a IA configurada, sem passar pelo WhatsApp.</p>
+        <div class="row gap">
+          <input id="testInput" type="text" placeholder="Ex.: Qual a capital do Brasil?" />
+          <button class="btn btn-primary" id="testBtn">Perguntar</button>
+        </div>
+        <pre id="testResult" class="pre hidden"></pre>
+      </section>
+
+      <!-- Atividade ao vivo (TODAS as mensagens detectadas) -->
+      <section class="card span-2">
+        <div class="card-header">
+          <h2>Atividade ao vivo · todas as mensagens que o bot recebe</h2>
+          <div class="row gap">
+            <label class="row gap small muted" style="gap:6px">
+              <input type="checkbox" id="autoScrollActivity" checked /> auto-scroll
+            </label>
+            <select id="activityFilter">
+              <option value="all">todas</option>
+              <option value="answered">só respondidas</option>
+              <option value="leader">só líder</option>
+              <option value="ignored">só ignoradas</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" id="clearActivityBtn">limpar</button>
+          </div>
+        </div>
+        <div class="activity" id="activityList">
+          <p class="muted small">Aguardando mensagens…</p>
+        </div>
+      </section>
+
+      <!-- Histórico (só Q/A respondidas) -->
+      <section class="card span-2">
+        <div class="card-header">
+          <h2>Histórico de perguntas/respostas</h2>
+          <span class="muted small" id="historyCount">0</span>
+        </div>
+        <div class="history" id="historyList"></div>
+      </section>
+
+      <!-- Logs -->
+      <section class="card span-2">
+        <div class="card-header">
+          <h2>Logs em tempo real</h2>
+          <div class="row gap">
+            <select id="logLevelFilter">
+              <option value="all">todos</option>
+              <option value="debug">debug+</option>
+              <option value="info">info+</option>
+              <option value="warn">warn+</option>
+              <option value="error">apenas erros</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" id="clearLogsBtn">limpar</button>
+          </div>
+        </div>
+        <pre class="logs" id="logBox"></pre>
+      </section>
+    </main>
+
+    <footer class="footer muted small">
+      wppbot · dashboard local · feito em vanilla JS
+    </footer>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
