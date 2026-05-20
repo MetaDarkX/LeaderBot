@@ -293,18 +293,70 @@ docker run --rm -v wppbot-auth:/data -v "$PWD":/backup alpine \
 docker compose exec -T postgres pg_dump -U wppbot wppbot > wppbot.sql
 ```
 
-### Expondo com HTTPS (recomendado)
+### Expondo a dashboard
 
 A dashboard escuta em `0.0.0.0:3000` dentro do container e é publicada
 na VPS na mesma porta. **Não exponha sem proteção em IP público.**
-Recomendo um dos:
 
-- **Cloudflare Tunnel** (`cloudflared`) — mais simples, sem abrir portas.
-- **Caddy** ou **nginx** como proxy reverso com Let's Encrypt apontando
-  para `http://127.0.0.1:3000`.
+#### Opção A — Acesso direto via `http://IP:3000`
 
-Em qualquer um deles, defina `WEB_TOKEN=algumtoken` no `.env` para
-exigir token na UI/API.
+Para testes ou redes internas. Você precisa **liberar a porta** na VPS:
+
+```bash
+# Firewall do SO (Ubuntu/Debian):
+sudo ufw allow 3000/tcp && sudo ufw reload
+
+# Confirma que está escutando externamente:
+sudo ss -tlnp | grep 3000
+```
+
+Se for VPS em AWS / GCP / Azure / DigitalOcean / Oracle, **também
+precisa liberar a porta 3000 no Security Group / Firewall do painel
+da nuvem** — esse é o motivo mais comum de "não abre" mesmo com tudo
+certo na VPS.
+
+#### Opção B — HTTPS automático com Caddy (recomendado)
+
+Já incluso no `docker-compose.yml` no perfil `https`. Caddy obtém
+certificado Let's Encrypt automaticamente.
+
+1. **DNS**: aponte um registro A do seu domínio para o IP da VPS.
+2. **Firewall**: libere portas **80** e **443** (não a 3000):
+   ```bash
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   sudo ufw reload
+   ```
+   (E também no Security Group da nuvem, se aplicável.)
+3. **Configure** no `.env`:
+   ```env
+   DASHBOARD_DOMAIN=bot.seudominio.com
+   DASHBOARD_EMAIL=voce@email.com
+   WEB_TOKEN=algumtoken         # opcional, mas recomendado
+   ```
+4. **Suba** com os dois perfis:
+   ```bash
+   docker compose --profile production --profile https up -d --build
+   ```
+5. Acesse `https://bot.seudominio.com/?token=algumtoken`.
+
+> Quer parar de expor a 3000 ao mundo? Edite o serviço `bot` no
+> `docker-compose.yml` e troque `- "${WEB_PORT:-3000}:3000"` por
+> `expose: ["3000"]`. Aí só o Caddy fala com o bot.
+
+#### Opção C — Cloudflare Tunnel
+
+Sem precisar abrir nenhuma porta:
+```bash
+# Na VPS, com o bot já rodando em :3000:
+docker run -d --restart unless-stopped --name cloudflared \
+  cloudflare/cloudflared:latest tunnel --no-autoupdate \
+  --url http://host.docker.internal:3000
+```
+Cole o token gerado no painel do Cloudflare Zero Trust.
+
+Em qualquer das opções acima, defina `WEB_TOKEN=algumtoken` no `.env`
+para exigir token na UI/API.
 
 ### Detalhes da imagem
 

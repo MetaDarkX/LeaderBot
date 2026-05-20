@@ -5,6 +5,11 @@
 #  - Produção (perfil "production"): sobe Postgres + bot.
 #      docker compose --profile production up -d --build
 #      docker compose --profile production logs -f bot
+#  - HTTPS com Caddy (perfil "https"): também sobe um Caddy
+#    que termina TLS com Let's Encrypt automaticamente.
+#    Exige um domínio apontando para a VPS e DASHBOARD_DOMAIN
+#    no .env.
+#      docker compose --profile production --profile https up -d --build
 # ============================================================
 
 services:
@@ -58,6 +63,25 @@ services:
         limits:
           memory: 1g
 
+  caddy:
+    profiles: ["https"]
+    image: caddy:2-alpine
+    container_name: wppbot-caddy
+    restart: unless-stopped
+    depends_on:
+      - bot
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:?defina DASHBOARD_DOMAIN no .env}
+      DASHBOARD_EMAIL: ${DASHBOARD_EMAIL:-admin@example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - wppbot-caddy-data:/data
+      - wppbot-caddy-config:/config
+
 volumes:
   wppbot-pgdata:
     name: wppbot-pgdata
@@ -67,3 +91,7 @@ volumes:
     name: wppbot-cache
   wppbot-logs:
     name: wppbot-logs
+  wppbot-caddy-data:
+    name: wppbot-caddy-data
+  wppbot-caddy-config:
+    name: wppbot-caddy-config

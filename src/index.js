@@ -4,6 +4,9 @@
 //  a dashboard web e registra eventos.
 // ============================================================
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 import pkg from 'whatsapp-web.js';
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
@@ -20,6 +23,40 @@ import { migrate } from './db/migrate.js';
 import { closePool } from './db/index.js';
 
 const { Client, LocalAuth } = pkg;
+
+/**
+ * Quando o Chromium é morto antes de fechar limpo (ex.: pm2 restart com
+ * kill_timeout curto, SIGKILL), sobram arquivos de lock no perfil do
+ * usuário (SingletonLock/SingletonCookie/SingletonSocket + LOCK do LevelDB).
+ * Eles fazem o Chromium recusar o perfil existente e abrir um novo "limpo",
+ * o que apaga a sessão do WhatsApp Web e força um novo QR Code.
+ *
+ * Esta função remove APENAS esses locks (nunca a pasta Default/ onde ficam
+ * cookies/IndexedDB com o token da sessão), tornando o restart resiliente.
+ */
+function cleanupStaleChromiumLocks(sessionDir) {
+  if (!sessionDir || !fs.existsSync(sessionDir)) return;
+  const lockNames = [
+    'SingletonLock',
+    'SingletonCookie',
+    'SingletonSocket',
+    'lockfile',
+  ];
+  for (const name of lockNames) {
+    const p = path.join(sessionDir, name);
+    try {
+      const stat = fs.lstatSync(p);
+      if (stat.isSymbolicLink() || stat.isFile()) {
+        fs.unlinkSync(p);
+        logger.debug(`[session] removido lock órfão: ${name}`);
+      }
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        logger.warn(`[session] não consegui remover ${name}: ${err.message}`);
+      }
+    }
+  }
+}
 
 installGlobalErrorHandlers();
 
@@ -102,7 +139,12 @@ client.on('ready', async () => {
 client.on('disconnected', (reason) => {
   logger.warn(`Cliente desconectou: ${reason}. Tentando reiniciar em 5s...`);
   stateService.setStatus('disconnected', { lastError: String(reason) });
-  setTimeout(() => client.initialize().catch((e) => logger.error('reinit:', e)), 5000);
+  const t = setTimeout(() => {
+    const sessionDir = path.join(config.session.dataPath, `session-${config.session.name}`);
+    cleanupStaleChromiumLocks(sessionDir);
+    client.initialize().catch((e) => logger.error('reinit:', e));
+  }, 5000);
+  t.unref();
 });
 
 client.on('change_state', (state) => {
@@ -113,10 +155,19 @@ const onMessage = createMessageHandler(client);
 client.on('message', onMessage);
 
 // ─── Encerramento gracioso ────────────────────────────────────────────────
+// Importante: o Chromium precisa de alguns segundos para finalizar a escrita
+// de IndexedDB/cookies (onde a sessão do WhatsApp Web é persistida). Se o
+// processo for morto antes disso, o próximo boot vai pedir QR novamente.
+// Por isso o ecosystem.config.cjs usa kill_timeout: 15000 e aqui aguardamos
+// client.destroy() concluir antes de fechar o pool e sair.
+let shuttingDown = false;
 async function shutdown(signal) {
-  logger.warn(`Recebido ${signal}, encerrando...`);
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.warn(`Recebido ${signal}, encerrando... (aguardando Chromium fechar)`);
   try {
     await client.destroy();
+    logger.info('Cliente WhatsApp finalizado.');
   } catch (e) {
     logger.error('Erro ao destruir client:', e);
   }
@@ -128,8 +179,8 @@ async function shutdown(signal) {
     process.exit(0);
   }
 }
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
 async function main() {
@@ -159,6 +210,12 @@ async function main() {
   }
 
   // 3) WhatsApp
+  // Remove locks órfãos do perfil do Chromium ANTES do initialize, senão um
+  // boot anterior mal finalizado faz o Chromium descartar o perfil e a
+  // sessão do WhatsApp (pede QR de novo).
+  const sessionDir = path.join(config.session.dataPath, `session-${config.session.name}`);
+  cleanupStaleChromiumLocks(sessionDir);
+
   client.initialize().catch((err) => {
     logger.error('Falha fatal ao inicializar client:', err);
     process.exit(1);

@@ -1,0 +1,33 @@
+# ============================================================
+#  Caddyfile
+#  Proxy reverso com HTTPS automático (Let's Encrypt) para a
+#  dashboard do wppbot.
+#
+#  Variáveis vêm do .env via docker-compose:
+#    DASHBOARD_DOMAIN   ex.: bot.seudominio.com
+#    DASHBOARD_EMAIL    e-mail para o Let's Encrypt
+# ============================================================
+
+{
+	email {$DASHBOARD_EMAIL}
+}
+
+{$DASHBOARD_DOMAIN} {
+	encode zstd gzip
+
+	# Cabeçalhos de segurança razoáveis
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Remove o header "Server: Caddy"
+		-Server
+	}
+
+	# WebSocket do Socket.IO funciona com o proxy padrão.
+	reverse_proxy bot:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

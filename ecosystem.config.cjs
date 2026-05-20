@@ -20,6 +20,12 @@ module.exports = {
       restart_delay: 5000,
       // Limite de memória: se passar de 500MB, PM2 reinicia o processo
       max_memory_restart: '500M',
+      // IMPORTANTE para persistência da sessão do WhatsApp:
+      // o Chromium precisa de tempo para finalizar a escrita de IndexedDB
+      // e cookies onde o token da sessão fica salvo. O default do PM2 é
+      // 1600ms, curto demais — o Chrome é morto antes de flushar e o
+      // próximo boot pede QR. 15s dá folga sobrando para o shutdown gracioso.
+      kill_timeout: 15000,
       // Logs
       out_file: './logs/out.log',
       error_file: './logs/error.log',
