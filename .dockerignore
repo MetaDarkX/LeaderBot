@@ -1,0 +1,27 @@
+**/node_modules
+**/.git
+**/.gitignore
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Sessão e cache do WhatsApp ficam no host (volumes), não no contexto da build
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Logs e PM2
+logs/
+*.log
+.pm2/
+
+# Arquivos do editor / SO
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Documentação e arquivos de dev que não vão pra imagem
+README.md
+docker-compose.yml
+Dockerfile*
+.dockerignore

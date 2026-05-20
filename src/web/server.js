@@ -16,10 +16,12 @@ import { stateService } from '../services/stateService.js';
 import { statsService } from '../services/statsService.js';
 import { historyService } from '../services/historyService.js';
 import { activityService } from '../services/activityService.js';
+import { groupService } from '../services/groupService.js';
 import { cacheStats, clearCache } from '../services/cacheService.js';
 import { resetCooldown } from '../services/cooldownService.js';
 import { askAI } from '../services/aiService.js';
 import { normalizePhone } from '../utils/filters.js';
+import { isReady as dbReady } from '../db/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,9 +81,6 @@ export function startWebServer({ client }) {
   app.post('/api/config', (req, res) => {
     const patch = req.body || {};
     const clean = {};
-    if (Array.isArray(patch.leaderNumbers)) {
-      clean.leaderNumbers = patch.leaderNumbers.map(normalizePhone).filter(Boolean);
-    }
     if (Array.isArray(patch.allowedGroups)) {
       clean.allowedGroups = patch.allowedGroups.map(String).filter(Boolean);
     }
@@ -119,15 +118,78 @@ export function startWebServer({ client }) {
       const chats = await client.getChats();
       const groups = chats
         .filter((c) => c.isGroup)
-        .map((c) => ({
-          id: c.id._serialized,
-          name: c.name,
-          participants: c.participants?.length ?? 0,
-          allowed: stateService.runtime.allowedGroups.length === 0
-            ? true
-            : stateService.runtime.allowedGroups.includes(c.id._serialized),
-        }));
+        .map((c) => {
+          const id = c.id._serialized;
+          return {
+            id,
+            name: c.name,
+            participants: c.participants?.length ?? 0,
+            allowed:
+              stateService.runtime.allowedGroups.length === 0
+                ? true
+                : stateService.runtime.allowedGroups.includes(id),
+            leaderCount: groupService.leadersOfGroup(id).size,
+          };
+        });
       res.json({ groups });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Grupos: participantes e líderes ───────────────────────
+  app.get('/api/groups/:id/participants', async (req, res) => {
+    const groupId = decodeURIComponent(req.params.id);
+    try {
+      if (!dbReady()) return res.status(503).json({ error: 'db indisponível' });
+      const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+      if (refresh) {
+        if (!client?.info) return res.status(503).json({ error: 'whatsapp não conectado' });
+        await groupService.syncParticipants(client, groupId);
+      }
+      const [participants, leaders] = await Promise.all([
+        groupService.listParticipants(groupId),
+        groupService.listLeaders(groupId),
+      ]);
+      res.json({ groupId, participants, leaders });
+    } catch (err) {
+      logger.warn(`[api] /groups/${groupId}/participants: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/groups/:id/leaders', async (req, res) => {
+    const groupId = decodeURIComponent(req.params.id);
+    try {
+      if (!dbReady()) return res.status(503).json({ error: 'db indisponível' });
+      const leaders = await groupService.listLeaders(groupId);
+      res.json({ groupId, leaders });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/groups/:id/leaders', async (req, res) => {
+    const groupId = decodeURIComponent(req.params.id);
+    const phone = normalizePhone(req.body?.phone || '');
+    const pushname = req.body?.pushname ?? null;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+    try {
+      await groupService.addLeader({ groupId, phone, pushname });
+      logger.info(`[ui] líder adicionado em ${groupId}: ${phone}`);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/groups/:id/leaders/:phone', async (req, res) => {
+    const groupId = decodeURIComponent(req.params.id);
+    const phone = normalizePhone(req.params.phone);
+    try {
+      await groupService.removeLeader({ groupId, phone });
+      logger.info(`[ui] líder removido de ${groupId}: ${phone}`);
+      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -180,6 +242,9 @@ export function startWebServer({ client }) {
   historyService.on('clear', () => io.emit('history:clear'));
   activityService.on('add', (item) => io.emit('activity:add', item));
   activityService.on('clear', () => io.emit('activity:clear'));
+  groupService.on('leaders:change', () => io.emit('leaders:change'));
+  groupService.on('leader:added', (p) => io.emit('leaders:change', p));
+  groupService.on('leader:removed', (p) => io.emit('leaders:change', p));
   logger.on('log', (entry) => io.emit('log', entry));
 
   // ── Start ─────────────────────────────────────────────────

@@ -1,0 +1,69 @@
+# ============================================================
+#  docker-compose.yml
+#  - Desenvolvimento (default): sobe APENAS o Postgres.
+#      docker compose up -d
+#  - Produção (perfil "production"): sobe Postgres + bot.
+#      docker compose --profile production up -d --build
+#      docker compose --profile production logs -f bot
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wppbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wppbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wppbot}
+      POSTGRES_DB: ${POSTGRES_DB:-wppbot}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - wppbot-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wppbot} -d ${POSTGRES_DB:-wppbot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bot:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: wppbot:prod
+    container_name: wppbot-bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Dentro da rede do compose o host do Postgres é o nome do serviço.
+      DATABASE_URL: "postgres://${POSTGRES_USER:-wppbot}:${POSTGRES_PASSWORD:-wppbot}@postgres:5432/${POSTGRES_DB:-wppbot}"
+      CHROME_PATH: /usr/bin/chromium
+      WEB_HOST: 0.0.0.0
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - wppbot-auth:/app/.wwebjs_auth
+      - wppbot-cache:/app/.wwebjs_cache
+      - wppbot-logs:/app/logs
+    # Necessário para o Chromium não estourar SHM em screenshots/QR.
+    shm_size: "1gb"
+    # Limites razoáveis para uma VPS pequena. Ajuste conforme o porte.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+volumes:
+  wppbot-pgdata:
+    name: wppbot-pgdata
+  wppbot-auth:
+    name: wppbot-auth
+  wppbot-cache:
+    name: wppbot-cache
+  wppbot-logs:
+    name: wppbot-logs

@@ -75,18 +75,11 @@
       <section class="card span-2">
         <h2>Configuração em runtime</h2>
         <div class="form-grid">
-          <label class="field">
-            <span>Líderes autorizados</span>
-            <textarea id="leadersInput" rows="3"
-              placeholder="5511999999999, 5521988888888"></textarea>
-            <small class="muted">Um por linha ou separados por vírgula. Apenas dígitos.</small>
-          </label>
-
-          <label class="field">
+          <label class="field span-2">
             <span>Grupos permitidos</span>
             <textarea id="groupsInput" rows="3"
               placeholder="120363025XXXXXXXXX@g.us"></textarea>
-            <small class="muted">Vazio = qualquer grupo do líder.</small>
+            <small class="muted">Vazio = qualquer grupo onde houver um líder definido.</small>
           </label>
 
           <label class="field">
@@ -113,11 +106,15 @@
       </section>
 
       <!-- Grupos -->
-      <section class="card">
+      <section class="card span-2">
         <div class="card-header">
-          <h2>Grupos onde estou</h2>
+          <h2>Grupos & Líderes</h2>
           <button class="btn btn-ghost btn-sm" id="refreshGroupsBtn">atualizar</button>
         </div>
+        <p class="muted small" style="margin-top:-4px">
+          Clique em <b>Gerenciar líderes</b> para ver os participantes de um grupo
+          e escolher quem o bot vai obedecer.
+        </p>
         <ul class="group-list" id="groupList">
           <li class="muted small">Carregando…</li>
         </ul>
@@ -187,6 +184,43 @@
     <footer class="footer muted small">
       wppbot · dashboard local · feito em vanilla JS
     </footer>
+
+    <!-- ─── Modal: gerenciamento de líderes do grupo ─── -->
+    <div class="modal hidden" id="leadersModal" role="dialog" aria-modal="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-card">
+        <header class="modal-header">
+          <div>
+            <h2 id="leadersGroupName">Grupo</h2>
+            <code id="leadersGroupId" class="muted small"></code>
+          </div>
+          <div class="row gap">
+            <button class="btn btn-ghost btn-sm" id="leadersSyncBtn" title="Buscar participantes do WhatsApp">
+              ↻ sincronizar
+            </button>
+            <button class="btn btn-ghost btn-sm" data-close>✕</button>
+          </div>
+        </header>
+
+        <div class="modal-body">
+          <div class="row gap" style="margin-bottom:8px">
+            <input id="leadersSearch" type="search" placeholder="Filtrar por nome ou telefone…" />
+            <span class="muted small" id="leadersCount"></span>
+          </div>
+
+          <div class="participants" id="participantsList">
+            <p class="muted small">Carregando participantes…</p>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <span class="muted small" id="leadersFooterHint">
+            Use o botão <b>★</b> para definir / remover um líder.
+          </span>
+          <button class="btn btn-primary btn-sm" data-close>Fechar</button>
+        </footer>
+      </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="./app.js" type="module"></script>

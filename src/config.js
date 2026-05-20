@@ -70,14 +70,18 @@ export const config = Object.freeze({
   }),
 
   bot: Object.freeze({
-    // Líderes são guardados sem o sufixo "@c.us" e sem caracteres não-numéricos
-    leaderNumbers: env('LEADER_NUMBERS', { defaultValue: '', parse: toList }).map((n) =>
-      n.replace(/\D/g, '')
-    ),
     allowedGroups: env('ALLOWED_GROUPS', { defaultValue: '', parse: toList }),
     cooldownMs: env('COOLDOWN_MS', { defaultValue: 1500, parse: toInt }),
     cacheTtlSeconds: env('CACHE_TTL_SECONDS', { defaultValue: 3600, parse: toInt }),
     maxQuestionLength: env('MAX_QUESTION_LENGTH', { defaultValue: 500, parse: toInt }),
+  }),
+
+  database: Object.freeze({
+    url: env('DATABASE_URL', {
+      defaultValue: 'postgres://wppbot:wppbot@localhost:5432/wppbot',
+    }),
+    poolMax: env('DATABASE_POOL_MAX', { defaultValue: 10, parse: toInt }),
+    connectTimeoutMs: env('DATABASE_CONNECT_TIMEOUT_MS', { defaultValue: 5000, parse: toInt }),
   }),
 
   session: Object.freeze({

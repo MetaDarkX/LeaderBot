@@ -65,7 +65,6 @@ const elements = {
   stCool: $('stCool'),
   stFilter: $('stFilter'),
 
-  leadersInput: $('leadersInput'),
   groupsInput: $('groupsInput'),
   cooldownInput: $('cooldownInput'),
   maxLenInput: $('maxLenInput'),
@@ -74,6 +73,14 @@ const elements = {
   groupList: $('groupList'),
   testInput: $('testInput'),
   testResult: $('testResult'),
+
+  leadersModal: $('leadersModal'),
+  leadersGroupName: $('leadersGroupName'),
+  leadersGroupId: $('leadersGroupId'),
+  leadersSearch: $('leadersSearch'),
+  leadersCount: $('leadersCount'),
+  participantsList: $('participantsList'),
+  leadersSyncBtn: $('leadersSyncBtn'),
 
   historyList: $('historyList'),
   historyCount: $('historyCount'),
@@ -92,6 +99,14 @@ let HISTORY = [];
 let ACTIVITY = [];
 let STATE = null;
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
+
+// Modal de líderes
+const leadersModalState = {
+  groupId: null,
+  groupName: '',
+  participants: [],
+  search: '',
+};
 
 // ─── Helpers de render ────────────────────────────────────
 function fmtMs(ms) {
@@ -156,7 +171,6 @@ function renderState(state) {
   if (state.runtimeConfig && document.activeElement?.tagName !== 'TEXTAREA' &&
       document.activeElement?.tagName !== 'INPUT') {
     const c = state.runtimeConfig;
-    elements.leadersInput.value = (c.leaderNumbers || []).join('\n');
     elements.groupsInput.value = (c.allowedGroups || []).join('\n');
     elements.cooldownInput.value = c.cooldownMs ?? 1500;
     elements.maxLenInput.value = c.maxQuestionLength ?? 500;
@@ -273,16 +287,29 @@ async function loadGroups() {
       elements.groupList.innerHTML = '<li class="muted small">Nenhum grupo encontrado (o bot está conectado?).</li>';
       return;
     }
-    elements.groupList.innerHTML = groups.map((g) => `
-      <li>
-        <div>
-          <div class="gname">${escapeHTML(g.name)} ${g.allowed ? '<span class="badge">ATIVO</span>' : ''}</div>
-          <code>${escapeHTML(g.id)} · ${g.participants} membros</code>
-        </div>
-        <button class="btn btn-sm" data-add="${escapeHTML(g.id)}">
-          ${g.allowed ? 'Já permitido' : '+ Permitir'}
-        </button>
-      </li>`).join('');
+    elements.groupList.innerHTML = groups.map((g) => {
+      const allowedBadge = g.allowed ? '<span class="badge">ATIVO</span>' : '';
+      const leaderBadge = g.leaderCount > 0
+        ? `<span class="badge badge-leader">★ ${g.leaderCount}</span>`
+        : '<span class="badge badge-empty">sem líder</span>';
+      return `
+        <li>
+          <div class="gmeta">
+            <div class="gname">
+              ${escapeHTML(g.name)} ${allowedBadge} ${leaderBadge}
+            </div>
+            <code>${escapeHTML(g.id)} · ${g.participants} membros</code>
+          </div>
+          <div class="row gap">
+            <button class="btn btn-sm" data-lead-id="${escapeHTML(g.id)}" data-lead-name="${escapeHTML(g.name)}">
+              ★ Gerenciar líderes
+            </button>
+            <button class="btn btn-sm" data-add="${escapeHTML(g.id)}">
+              ${g.allowed ? 'Já permitido' : '+ Permitir'}
+            </button>
+          </div>
+        </li>`;
+    }).join('');
     elements.groupList.querySelectorAll('[data-add]').forEach((btn) => {
       btn.onclick = () => {
         const id = btn.getAttribute('data-add');
@@ -292,9 +319,113 @@ async function loadGroups() {
         toast('Grupo adicionado à lista. Clique em "Salvar".');
       };
     });
+    elements.groupList.querySelectorAll('[data-lead-id]').forEach((btn) => {
+      btn.onclick = () => {
+        openLeadersModal(btn.getAttribute('data-lead-id'), btn.getAttribute('data-lead-name'));
+      };
+    });
   } catch (err) {
     elements.groupList.innerHTML = `<li class="muted small">Erro: ${escapeHTML(err.message)}</li>`;
   }
+}
+
+// ─── Modal: gerenciamento de líderes ─────────────────────
+async function openLeadersModal(groupId, groupName) {
+  leadersModalState.groupId = groupId;
+  leadersModalState.groupName = groupName || groupId;
+  leadersModalState.search = '';
+  elements.leadersSearch.value = '';
+  elements.leadersGroupName.textContent = leadersModalState.groupName;
+  elements.leadersGroupId.textContent = groupId;
+  elements.leadersModal.classList.remove('hidden');
+  elements.participantsList.innerHTML = '<p class="muted small">Carregando participantes…</p>';
+  await loadLeadersModal();
+}
+
+function closeLeadersModal() {
+  elements.leadersModal.classList.add('hidden');
+  leadersModalState.groupId = null;
+  leadersModalState.participants = [];
+}
+
+async function loadLeadersModal({ refresh = false } = {}) {
+  if (!leadersModalState.groupId) return;
+  const qs = refresh ? '?refresh=1' : '';
+  try {
+    const data = await api(`/api/groups/${encodeURIComponent(leadersModalState.groupId)}/participants${qs}`);
+    leadersModalState.participants = data.participants || [];
+    renderParticipants();
+    if (refresh) toast('Participantes sincronizados', 'ok');
+  } catch (err) {
+    elements.participantsList.innerHTML = `<p class="muted small">Erro: ${escapeHTML(err.message)}</p>`;
+  }
+}
+
+function renderParticipants() {
+  const q = (leadersModalState.search || '').trim().toLowerCase();
+  const list = leadersModalState.participants.filter((p) => {
+    if (!q) return true;
+    const hay = `${p.phone} ${p.pushname || ''} ${p.display_name || ''}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  const total = leadersModalState.participants.length;
+  const leaders = leadersModalState.participants.filter((p) => p.is_leader).length;
+  elements.leadersCount.textContent = `${leaders} líder(es) · ${list.length}/${total}`;
+
+  if (!list.length) {
+    elements.participantsList.innerHTML = total === 0
+      ? `<p class="muted small">Nenhum participante registrado. Clique em <b>↻ sincronizar</b> para buscar do WhatsApp.</p>`
+      : `<p class="muted small">Nenhum participante combina com "${escapeHTML(q)}".</p>`;
+    return;
+  }
+
+  elements.participantsList.innerHTML = list.map((p) => {
+    const name = p.display_name || p.pushname || `+${p.phone}`;
+    const subtitle = `+${p.phone}${p.is_admin ? ' · admin' : ''}`;
+    const cls = p.is_leader ? 'is-leader' : '';
+    const btn = p.is_leader
+      ? `<button class="btn btn-sm btn-warn" data-remove="${escapeHTML(p.phone)}">★ remover líder</button>`
+      : `<button class="btn btn-sm btn-primary" data-add="${escapeHTML(p.phone)}" data-name="${escapeHTML(name)}">☆ tornar líder</button>`;
+    return `
+      <div class="participant ${cls}">
+        <div class="p-meta">
+          <div class="p-name">${escapeHTML(name)} ${p.is_admin ? '<span class="badge badge-admin">admin</span>' : ''}</div>
+          <code class="muted small">${escapeHTML(subtitle)}</code>
+        </div>
+        ${btn}
+      </div>`;
+  }).join('');
+
+  elements.participantsList.querySelectorAll('[data-add]').forEach((btn) => {
+    btn.onclick = () => addLeader(btn.getAttribute('data-add'), btn.getAttribute('data-name'));
+  });
+  elements.participantsList.querySelectorAll('[data-remove]').forEach((btn) => {
+    btn.onclick = () => removeLeader(btn.getAttribute('data-remove'));
+  });
+}
+
+async function addLeader(phone, name) {
+  try {
+    await api(`/api/groups/${encodeURIComponent(leadersModalState.groupId)}/leaders`, {
+      method: 'POST',
+      body: JSON.stringify({ phone, pushname: name }),
+    });
+    toast('Líder adicionado');
+    await loadLeadersModal();
+    loadGroups();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function removeLeader(phone) {
+  try {
+    await api(`/api/groups/${encodeURIComponent(leadersModalState.groupId)}/leaders/${encodeURIComponent(phone)}`, {
+      method: 'DELETE',
+    });
+    toast('Líder removido');
+    await loadLeadersModal();
+    loadGroups();
+  } catch (e) { toast(e.message, 'err'); }
 }
 
 // ─── Ações ────────────────────────────────────────────────
@@ -309,13 +440,11 @@ elements.pauseBtn.addEventListener('click', async () => {
 });
 
 document.getElementById('saveConfigBtn').addEventListener('click', async () => {
-  const leaders = elements.leadersInput.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
   const groups  = elements.groupsInput.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
   try {
     await api('/api/config', {
       method: 'POST',
       body: JSON.stringify({
-        leaderNumbers: leaders,
         allowedGroups: groups,
         cooldownMs: Number(elements.cooldownInput.value) || 0,
         maxQuestionLength: Number(elements.maxLenInput.value) || 500,
@@ -381,6 +510,19 @@ document.getElementById('clearActivityBtn').addEventListener('click', async () =
   catch (e) { toast(e.message, 'err'); }
 });
 
+// ─── Listeners do modal de líderes ───────────────────────
+elements.leadersSearch.addEventListener('input', () => {
+  leadersModalState.search = elements.leadersSearch.value;
+  renderParticipants();
+});
+elements.leadersSyncBtn.addEventListener('click', () => loadLeadersModal({ refresh: true }));
+elements.leadersModal.addEventListener('click', (e) => {
+  if (e.target.matches('[data-close]')) closeLeadersModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !elements.leadersModal.classList.contains('hidden')) closeLeadersModal();
+});
+
 // ─── Socket.IO ────────────────────────────────────────────
 const socket = io({ auth: { token: TOKEN } });
 
@@ -418,6 +560,10 @@ socket.on('log', (entry) => {
   LOGS.push(entry);
   if (LOGS.length > 500) LOGS.shift();
   renderLogs();
+});
+socket.on('leaders:change', () => {
+  loadGroups();
+  if (!elements.leadersModal.classList.contains('hidden')) loadLeadersModal();
 });
 
 // Atualiza o uptime a cada segundo (sem precisar bater no backend)

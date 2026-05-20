@@ -6,7 +6,12 @@
 // ============================================================
 
 import { logger } from '../utils/logger.js';
-import { isAllowedGroup, isLeader, validateQuestion, normalizePhone } from '../utils/filters.js';
+import {
+  isAllowedGroup,
+  isLeaderOfGroup,
+  validateQuestion,
+  normalizePhone,
+} from '../utils/filters.js';
 import { canReply, markReplied } from '../services/cooldownService.js';
 import { resolveQuestion } from './questionHandler.js';
 import { extractTextFromImage } from '../services/ocrService.js';
@@ -15,7 +20,10 @@ import { stateService } from '../services/stateService.js';
 import { statsService } from '../services/statsService.js';
 import { historyService } from '../services/historyService.js';
 import { activityService, ACTIONS } from '../services/activityService.js';
+import { groupService } from '../services/groupService.js';
 import { truncate } from '../utils/helpers.js';
+import { isReady as dbReady } from '../db/index.js';
+import { touchGroup } from '../db/repositories/groupRepo.js';
 
 async function extractText(message) {
   if (message.body && message.body.trim()) return message.body.trim();
@@ -88,7 +96,6 @@ export function createMessageHandler(_client) {
 
       const authorId = message.author || message.from;
       ctx.author = normalizePhone((authorId || '').split('@')[0]);
-      ctx.isLeader = isLeader(authorId);
 
       if (!chat.isGroup) {
         // DMs ficam de fora da gincana, mas registramos para visibilidade
@@ -98,18 +105,34 @@ export function createMessageHandler(_client) {
       }
 
       ctx.groupName = chat.name;
+      const groupId = chat.id._serialized;
+
+      // Registra/atualiza o grupo no DB (best-effort)
+      if (dbReady()) {
+        touchGroup({
+          id: groupId,
+          name: chat.name,
+          participantsCount: chat.participants?.length ?? 0,
+        }).catch(() => {});
+      }
+
+      ctx.isLeader = isLeaderOfGroup(authorId, groupId);
 
       // 3) Grupo não está na allowlist
-      if (!isAllowedGroup(chat.id._serialized)) {
-        track(ACTIONS.IGNORED_GROUP, ctx, `id=${chat.id._serialized}`);
+      if (!isAllowedGroup(groupId)) {
+        track(ACTIONS.IGNORED_GROUP, ctx, `id=${groupId}`);
         statsService.inc('ignoredByFilter');
         return;
       }
 
-      // 4) Autor não é líder — REGISTRAMOS no feed, para o usuário ver
+      // 4) Autor não é líder do grupo — REGISTRAMOS no feed, para o usuário ver
       // que o bot está "ouvindo" o grupo
       if (!ctx.isLeader) {
-        track(ACTIONS.IGNORED_LEADER, ctx);
+        const ledCount = groupService.leadersOfGroup(groupId).size;
+        const reason = ledCount === 0
+          ? 'nenhum líder definido para este grupo'
+          : undefined;
+        track(ACTIONS.IGNORED_LEADER, ctx, reason);
         return;
       }
 
@@ -162,7 +185,7 @@ export function createMessageHandler(_client) {
       statsService.recordAnswer({ leaderId: authorId, source, elapsedMs });
       historyService.add({
         groupName: ctx.groupName,
-        groupId: chat.id._serialized,
+        groupId,
         leaderId: authorId,
         question: text,
         answer,

@@ -8,6 +8,10 @@
 // ============================================================
 
 import { stateService } from '../services/stateService.js';
+import { groupService } from '../services/groupService.js';
+import { normalizePhone } from './helpers.js';
+
+export { normalizePhone };
 
 const QUESTION_KEYWORDS = [
   'qual', 'quais', 'quem', 'quando', 'onde', 'como', 'porque', 'por que',
@@ -23,14 +27,15 @@ export function looksLikeQuestion(text) {
   return QUESTION_KEYWORDS.some((kw) => t.startsWith(kw + ' ') || t.includes(' ' + kw + ' '));
 }
 
-export function normalizePhone(input) {
-  return String(input ?? '').replace(/\D/g, '');
-}
-
-export function isLeader(authorId) {
-  if (!authorId) return false;
-  const phone = normalizePhone(authorId.split('@')[0]);
-  return stateService.runtime.leaderNumbers.includes(phone);
+/**
+ * Verifica se o autor é líder de um determinado grupo.
+ * Líderes agora são definidos POR grupo no banco (via dashboard).
+ * Aceita tanto `authorId` (com sufixo @c.us) quanto telefone "cru".
+ */
+export function isLeaderOfGroup(authorId, groupId) {
+  if (!authorId || !groupId) return false;
+  const phone = normalizePhone(String(authorId).split('@')[0]);
+  return groupService.isLeaderOfGroup(groupId, phone);
 }
 
 export function isAllowedGroup(groupId) {

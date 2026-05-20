@@ -6,21 +6,25 @@ perguntas postadas pelo(s) **líder(es)** de uma gincana, usando IA
 
 > Construído com `whatsapp-web.js` + ESM + arquitetura modular,
 > com **dashboard web** integrada para configurar e monitorar tudo
-> em tempo real.
+> em tempo real, e **PostgreSQL** para persistir grupos, líderes,
+> histórico e configurações.
 
 ---
 
 ## Recursos
 
-- Detecta apenas mensagens **em grupos** vindas de **líderes autorizados**.
+- Detecta apenas mensagens **em grupos** vindas de **líderes escolhidos por grupo**.
 - Ignora mensagens próprias.
 - Resposta via **OpenAI** ou **Gemini** (escolha no `.env`).
-- Sistema de **cache** de respostas (mesma pergunta = resposta instantânea).
+- **PostgreSQL** persiste grupos, participantes, líderes selecionados,
+  histórico de perguntas/respostas e a configuração de runtime.
+- Cada grupo tem seus próprios líderes — selecionados na dashboard a
+  partir da lista de participantes reais do grupo.
+- Sistema de **cache** em memória (mesma pergunta = resposta instantânea).
 - **Cooldown** por líder, para reduzir risco de banimento.
 - **Retry** com backoff exponencial e **timeout** por tentativa.
 - **Fallback** configurável caso a IA falhe.
 - **Filtro de perguntas** (descarta mensagens que não parecem pergunta).
-- **Múltiplos líderes** e **múltiplos grupos** suportados.
 - Sessão do WhatsApp **persistida** em `.wwebjs_auth/`.
 - Logs coloridos e bonitos no terminal.
 - Stubs prontos para **OCR** e **transcrição de áudio**.
@@ -35,13 +39,24 @@ perguntas postadas pelo(s) **líder(es)** de uma gincana, usando IA
 ```
 wppbot/
 ├── src/
+│   ├── db/                       # ◀ camada PostgreSQL
+│   │   ├── index.js              # pool de conexão + helpers
+│   │   ├── schema.sql            # schema (idempotente)
+│   │   ├── migrate.js            # aplica o schema no boot
+│   │   └── repositories/
+│   │       ├── groupRepo.js
+│   │       ├── leaderRepo.js
+│   │       ├── historyRepo.js
+│   │       └── configRepo.js
 │   ├── services/
 │   │   ├── aiService.js          # OpenAI / Gemini
 │   │   ├── cacheService.js       # cache em memória
 │   │   ├── cooldownService.js    # cooldown por líder
-│   │   ├── stateService.js       # estado + configs em runtime
+│   │   ├── stateService.js       # estado + configs em runtime (persiste no DB)
 │   │   ├── statsService.js       # métricas agregadas
-│   │   ├── historyService.js     # histórico Q/A em memória
+│   │   ├── historyService.js     # histórico Q/A (memória + DB)
+│   │   ├── groupService.js       # grupos, participantes e líderes por grupo
+│   │   ├── activityService.js    # feed ao vivo
 │   │   ├── ocrService.js         # placeholder OCR (futuro)
 │   │   └── audioService.js       # placeholder áudio (futuro)
 │   ├── handlers/
@@ -61,6 +76,7 @@ wppbot/
 │   │       └── app.js
 │   ├── config.js                 # config central + validação
 │   └── index.js                  # entrypoint
+├── docker-compose.yml            # serviço Postgres
 ├── ecosystem.config.cjs          # config PM2
 ├── .env.example
 ├── .gitignore
@@ -72,8 +88,9 @@ wppbot/
 
 ## 1. Instalação
 
-> Pré-requisitos: **Node.js 18+** e **Chromium**/Chrome instalado no sistema
-> (necessário em Linux/WSL pelo `whatsapp-web.js`/Puppeteer).
+> Pré-requisitos: **Node.js 18+**, **Docker** (para o Postgres) e
+> **Chromium**/Chrome instalado no sistema (necessário em Linux/WSL pelo
+> `whatsapp-web.js`/Puppeteer).
 
 ```bash
 # Em Ubuntu/Debian/WSL, se ainda não tiver:
@@ -83,6 +100,9 @@ sudo apt install -y chromium-browser fonts-liberation libnss3 libatk-bridge2.0-0
 
 # Clone/copie este projeto e dentro da pasta:
 npm install
+
+# Sobe o Postgres (lê POSTGRES_* do .env):
+docker compose up -d
 ```
 
 Se o Puppeteer reclamar do Chromium, descubra o caminho com
@@ -105,8 +125,9 @@ Edite o `.env`:
 | `OPENAI_MODEL`        | ex.: `gpt-4o-mini` (rápido e barato) |
 | `GEMINI_API_KEY`      | chave do Google AI Studio |
 | `GEMINI_MODEL`        | ex.: `gemini-1.5-flash` |
-| `LEADER_NUMBERS`      | telefones do(s) líder(es), separados por vírgula. Ex.: `5511999999999,5521988888888` |
-| `ALLOWED_GROUPS`      | IDs dos grupos. Vazio = qualquer grupo em que o líder esteja |
+| `DATABASE_URL`        | string de conexão do Postgres (default: `postgres://wppbot:wppbot@localhost:5432/wppbot`) |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` | usados pelo `docker-compose.yml` |
+| `ALLOWED_GROUPS`      | IDs dos grupos. Vazio = qualquer grupo em que houver líder definido |
 | `COOLDOWN_MS`         | intervalo mínimo entre respostas a um mesmo líder (ms) |
 | `CACHE_TTL_SECONDS`   | quanto tempo manter respostas no cache |
 | `AI_MAX_RETRIES`      | retries em caso de falha da IA |
@@ -125,6 +146,27 @@ Edite o `.env`:
 
 Rode o bot com `LOG_LEVEL=debug` e mande qualquer mensagem no grupo:
 o `chat.id._serialized` aparece nos logs (algo como `120363025XXXXXXXXX@g.us`).
+
+> Dica: na dashboard, a aba **Grupos & Líderes** já mostra esse ID e os
+> grupos disponíveis automaticamente.
+
+---
+
+## 2.1 Escolhendo os líderes pela dashboard
+
+A partir desta versão os líderes são definidos **por grupo** e não mais
+no `.env`. O fluxo é:
+
+1. Conecte o WhatsApp escaneando o QR Code.
+2. Abra a dashboard em `http://localhost:3000`.
+3. Na seção **Grupos & Líderes**, clique em **★ Gerenciar líderes** no
+   grupo desejado.
+4. O modal abre com os participantes reais do grupo. Clique em **↻ sincronizar**
+   na primeira vez (busca a lista via WhatsApp).
+5. Use **☆ tornar líder** ou **★ remover líder** para cada pessoa.
+
+O bot passa a responder *imediatamente* às perguntas dos líderes
+selecionados — não é preciso reiniciar.
 
 ---
 
@@ -203,7 +245,91 @@ Ela está no `.gitignore`. **Não apague** essa pasta, ou você terá que escane
 
 ---
 
-## 7. Produção com PM2
+## 7. Produção em VPS com Docker
+
+Já existe um `Dockerfile.production` e o perfil `production` no
+`docker-compose.yml` que sobe o bot **e** o Postgres juntos.
+
+### Passos na VPS (Ubuntu/Debian)
+
+```bash
+# 1) Instalar Docker Engine + Compose plugin (se ainda não tiver)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER && newgrp docker
+
+# 2) Clonar o projeto e preencher o .env
+git clone https://github.com/SEU_USUARIO/wppbot.git
+cd wppbot
+cp .env.example .env
+nano .env                      # preencha as chaves de IA, etc.
+
+# 3) Subir Postgres + bot
+docker compose --profile production up -d --build
+
+# 4) Acompanhar logs / pegar o QR Code
+docker compose --profile production logs -f bot
+```
+
+Na primeira execução o QR Code aparece nos logs **e** na dashboard
+(`http://IP_DA_VPS:3000`). Depois de escanear, a sessão fica no volume
+`wppbot-auth` — você não precisa escanear de novo, mesmo se o container
+for recriado.
+
+### Atualizar versão
+
+```bash
+git pull
+docker compose --profile production up -d --build
+```
+
+### Backup da sessão e do banco
+
+```bash
+# Sessão do WhatsApp
+docker run --rm -v wppbot-auth:/data -v "$PWD":/backup alpine \
+  tar czf /backup/wppbot-auth.tgz -C /data .
+
+# Banco
+docker compose exec -T postgres pg_dump -U wppbot wppbot > wppbot.sql
+```
+
+### Expondo com HTTPS (recomendado)
+
+A dashboard escuta em `0.0.0.0:3000` dentro do container e é publicada
+na VPS na mesma porta. **Não exponha sem proteção em IP público.**
+Recomendo um dos:
+
+- **Cloudflare Tunnel** (`cloudflared`) — mais simples, sem abrir portas.
+- **Caddy** ou **nginx** como proxy reverso com Let's Encrypt apontando
+  para `http://127.0.0.1:3000`.
+
+Em qualquer um deles, defina `WEB_TOKEN=algumtoken` no `.env` para
+exigir token na UI/API.
+
+### Detalhes da imagem
+
+O `Dockerfile.production` é multi-stage:
+
+1. **deps**: instala apenas `dependencies` (`npm ci --omit=dev`) usando
+   cache do BuildKit.
+2. **runtime**: `node:20-bookworm-slim` + Chromium do sistema + libs
+   necessárias para o Puppeteer. Sobe como usuário `node`, usa `tini`
+   como PID 1 e expõe `3000`.
+
+Volumes persistidos:
+- `wppbot-pgdata` → dados do Postgres
+- `wppbot-auth` → `.wwebjs_auth` (sessão do WhatsApp)
+- `wppbot-cache` → `.wwebjs_cache` (cache do whatsapp-web.js)
+- `wppbot-logs` → `logs/`
+
+Variáveis sobrescritas no compose:
+- `DATABASE_URL` aponta para o serviço `postgres` da rede do compose.
+- `CHROME_PATH=/usr/bin/chromium`.
+- `WEB_HOST=0.0.0.0`.
+
+---
+
+## 8. Produção com PM2 (alternativa, sem Docker)
 
 ```bash
 # Instala o PM2 globalmente (uma vez):
@@ -235,7 +361,7 @@ O `ecosystem.config.cjs` já vem com:
 
 ---
 
-## 8. Suporte futuro: OCR e Áudio
+## 9. Suporte futuro: OCR e Áudio
 
 Já existem dois services prontos para serem implementados:
 
@@ -249,7 +375,7 @@ automaticamente quando uma mensagem chega com imagem ou áudio.
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 **`Failed to launch the browser process`** — instale o Chromium:
 ```bash
@@ -264,9 +390,18 @@ reduza o zoom da fonte. O `qrcode-terminal` usa caracteres unicode.
 especialmente `LEADER_NUMBERS` e a chave da IA escolhida.
 
 **Bot não responde no grupo** — confira:
-1. O número do líder está em `LEADER_NUMBERS` (com DDI, só dígitos).
+1. Existe pelo menos 1 líder definido para o grupo na dashboard
+   (**Grupos & Líderes → ★ Gerenciar líderes**).
 2. O grupo está em `ALLOWED_GROUPS` (ou deixe vazio).
 3. `LOG_LEVEL=debug` mostra exatamente por que cada mensagem foi ignorada.
+
+**Erro `Falha ao conectar/migrar o Postgres`** — verifique se o serviço
+está no ar:
+```bash
+docker compose ps
+docker compose logs postgres
+```
+Confira também `DATABASE_URL` no `.env`.
 
 ---
 

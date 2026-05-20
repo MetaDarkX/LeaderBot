@@ -13,7 +13,11 @@ import { logger } from './utils/logger.js';
 import { installGlobalErrorHandlers } from './handlers/errorHandler.js';
 import { createMessageHandler } from './handlers/messageHandler.js';
 import { stateService } from './services/stateService.js';
+import { historyService } from './services/historyService.js';
+import { groupService } from './services/groupService.js';
 import { startWebServer } from './web/server.js';
+import { migrate } from './db/migrate.js';
+import { closePool } from './db/index.js';
 
 const { Client, LocalAuth } = pkg;
 
@@ -21,15 +25,11 @@ installGlobalErrorHandlers();
 
 logger.banner('Bot de Gincana WhatsApp');
 logger.info(`provedor de IA: ${config.ai.provider.toUpperCase()}`);
-logger.info(`líderes autorizados: ${config.bot.leaderNumbers.join(', ') || '(nenhum!)'}`);
 logger.info(
   `grupos permitidos: ${config.bot.allowedGroups.length ? config.bot.allowedGroups.join(', ') : '(qualquer)'}`
 );
 logger.info(`cooldown: ${config.bot.cooldownMs}ms | cache: ${config.bot.cacheTtlSeconds}s`);
-
-if (!config.bot.leaderNumbers.length) {
-  logger.warn('Nenhum LEADER_NUMBERS configurado — o bot não responderá ninguém.');
-}
+logger.info(`banco de dados: ${config.database.url.replace(/:[^:@]+@/, ':***@')}`);
 
 const puppeteerArgs = [
   '--no-sandbox',
@@ -84,7 +84,7 @@ client.on('loading_screen', (percent, msg) => {
   logger.debug(`[loading] ${percent}% — ${msg}`);
 });
 
-client.on('ready', () => {
+client.on('ready', async () => {
   logger.banner('Bot pronto e ouvindo mensagens');
   const me = {
     pushname: client.info?.pushname ?? '?',
@@ -92,6 +92,11 @@ client.on('ready', () => {
   };
   logger.success(`Logado como: ${me.pushname} (${me.number})`);
   stateService.setReady(me);
+
+  // Sincroniza os grupos do WhatsApp com o banco assim que o bot fica pronto.
+  groupService.syncAllGroups(client).catch((err) =>
+    logger.warn(`[ready] erro ao sincronizar grupos: ${err.message}`)
+  );
 });
 
 client.on('disconnected', (reason) => {
@@ -114,6 +119,11 @@ async function shutdown(signal) {
     await client.destroy();
   } catch (e) {
     logger.error('Erro ao destruir client:', e);
+  }
+  try {
+    await closePool();
+  } catch (e) {
+    logger.error('Erro ao fechar pool do DB:', e);
   } finally {
     process.exit(0);
   }
@@ -123,6 +133,21 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
 async function main() {
+  // 1) Banco de dados (obrigatório agora) — schema é idempotente.
+  try {
+    await migrate();
+    await stateService.loadFromDb();
+    await historyService.loadFromDb();
+    await groupService.refreshLeadersCache();
+  } catch (err) {
+    logger.error(
+      `Falha ao conectar/migrar o Postgres: ${err.message}. ` +
+        'Verifique se o serviço está no ar (docker compose up -d) e DATABASE_URL no .env.'
+    );
+    process.exit(1);
+  }
+
+  // 2) Dashboard web
   if (config.web.enabled) {
     try {
       await startWebServer({ client });
@@ -133,6 +158,7 @@ async function main() {
     logger.info('Dashboard web desabilitada (WEB_ENABLED=false).');
   }
 
+  // 3) WhatsApp
   client.initialize().catch((err) => {
     logger.error('Falha fatal ao inicializar client:', err);
     process.exit(1);

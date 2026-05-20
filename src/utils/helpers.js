@@ -25,3 +25,8 @@ export async function timed(promise) {
   const value = await promise;
   return { value, elapsedMs: Date.now() - t0 };
 }
+
+/** Mantém somente os dígitos — útil para padronizar telefones. */
+export function normalizePhone(input) {
+  return String(input ?? '').replace(/\D/g, '');
+}

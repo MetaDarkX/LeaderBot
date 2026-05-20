@@ -3,10 +3,17 @@
 //  Mantém o estado global do bot (status, QR, pausa, info do
 //  usuário logado, configs mutáveis) e emite eventos via
 //  EventEmitter para qualquer ouvinte (ex.: a UI Web).
+//
+//  Configurações em runtime são persistidas no Postgres via
+//  bot_config (chave "runtime"). No boot, são carregadas
+//  através de `loadFromDb()`.
 // ============================================================
 
 import { EventEmitter } from 'node:events';
 import { config } from '../config.js';
+import { logger } from '../utils/logger.js';
+import { loadRuntimeConfig, saveRuntimeConfig } from '../db/repositories/configRepo.js';
+import { isReady as dbReady } from '../db/index.js';
 
 class StateService extends EventEmitter {
   constructor() {
@@ -21,7 +28,6 @@ class StateService extends EventEmitter {
       // Configs editáveis em runtime (clone das configs estáticas)
       runtimeConfig: {
         aiProvider: config.ai.provider,
-        leaderNumbers: [...config.bot.leaderNumbers],
         allowedGroups: [...config.bot.allowedGroups],
         cooldownMs: config.bot.cooldownMs,
         maxQuestionLength: config.bot.maxQuestionLength,
@@ -44,11 +50,36 @@ class StateService extends EventEmitter {
     this.emit('change', this.snapshot());
   }
 
-  /** Atualiza um campo dentro de runtimeConfig. */
+  /** Atualiza um campo dentro de runtimeConfig (e persiste no DB). */
   patchRuntimeConfig(patch) {
     this.state.runtimeConfig = { ...this.state.runtimeConfig, ...patch };
     this.emit('change', this.snapshot());
     this.emit('config', this.state.runtimeConfig);
+    if (dbReady()) {
+      saveRuntimeConfig(this.state.runtimeConfig).catch((err) =>
+        logger.warn(`[state] falha ao persistir runtimeConfig: ${err.message}`)
+      );
+    }
+  }
+
+  /** Tenta restaurar a runtimeConfig persistida no Postgres. */
+  async loadFromDb() {
+    if (!dbReady()) return false;
+    try {
+      const saved = await loadRuntimeConfig();
+      if (!saved) return false;
+      this.state.runtimeConfig = {
+        ...this.state.runtimeConfig,
+        ...saved,
+      };
+      this.emit('change', this.snapshot());
+      this.emit('config', this.state.runtimeConfig);
+      logger.info('[state] runtimeConfig carregada do Postgres');
+      return true;
+    } catch (err) {
+      logger.warn(`[state] não consegui carregar runtimeConfig: ${err.message}`);
+      return false;
+    }
   }
 
   setStatus(status, extra = {}) {
