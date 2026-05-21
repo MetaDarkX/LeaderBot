@@ -51,8 +51,9 @@ wppbot/
 │   │   ├── auth.js               # token opcional (API + WS)
 │   │   ├── socket.js             # broadcast em tempo real
 │   │   ├── routes/               # um arquivo por domínio de rota
-│   │   └── public/               # UI estática
+│   │   └── public/               # UI (build React → aqui)
 │   └── index.js                  # entrypoint
+├── dashboard/                    # frontend React + TypeScript + Tailwind (fonte)
 ```
 
 Imports via aliases Node (`package.json#imports`), ex.: `#config`, `#providers/ai`, `#modules/groups`, `#pipeline/handleIncomingMessage`.
@@ -169,6 +170,18 @@ No celular: **WhatsApp → Aparelhos conectados → Conectar um aparelho** e esc
 A sessão fica salva em `.wwebjs_auth/` — você só precisa escanear uma vez.
 
 ### Dashboard Web
+
+A UI é um app **React + TypeScript + Tailwind** em `dashboard/`. Em produção o
+build vai para `src/web/public/` (servido pelo Express).
+
+```bash
+# desenvolvimento da UI (proxy para API em :3000)
+npm run dashboard:install   # primeira vez
+npm run dashboard:dev
+
+# build para produção / antes do deploy
+npm run dashboard:build
+```
 
 Abra `http://localhost:3000` (ou a porta definida em `WEB_PORT`).
 Recursos da UI:

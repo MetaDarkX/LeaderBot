@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-surface-0: #07090f;
+  --color-surface-1: #0c111b;
+  --color-surface-2: #131a27;
+  --color-surface-3: #1a2333;
+  --color-surface-hover: #1f2a3d;
+
+  --color-border: #1f2a3d;
+  --color-border-soft: #182236;
+
+  --color-ink: #e7eef9;
+  --color-ink-dim: #b8c4dc;
+  --color-muted: #7886a2;
+
+  --color-accent: #25d366;
+  --color-accent-dim: #1ea954;
+  --color-accent-soft: rgb(37 211 102 / 0.12);
+
+  --color-warn: #f0b429;
+  --color-warn-soft: rgb(240 180 41 / 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgb(239 68 68 / 0.14);
+  --color-info: #38bdf8;
+  --color-info-soft: rgb(56 189 248 / 0.14);
+  --color-violet: #c084fc;
+  --color-violet-soft: rgb(192 132 252 / 0.14);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+@layer base {
+  * {
+    @apply border-border box-border;
+  }
+
+  html {
+    @apply antialiased;
+    color-scheme: dark;
+  }
+
+  body {
+    @apply m-0 min-h-dvh bg-surface-0 font-sans text-sm leading-relaxed text-ink;
+    background:
+      radial-gradient(1100px 600px at 0% -10%, rgb(56 189 248 / 0.06), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgb(192 132 252 / 0.06), transparent 60%),
+      radial-gradient(800px 400px at 50% 100%, rgb(37 211 102 / 0.04), transparent 60%),
+      var(--color-surface-0);
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
