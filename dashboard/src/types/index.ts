@@ -84,7 +84,9 @@ export interface Participant {
 }
 
 export interface Leader {
+  /** Identificador canônico (coluna `phone` no DB — ex.: 59619045069032@lid). */
   phone: string;
+  member_id?: string;
   pushname?: string;
 }
 

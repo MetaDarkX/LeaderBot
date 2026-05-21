@@ -148,6 +148,8 @@ no `.env`. O fluxo é:
 4. O modal abre com os participantes reais do grupo. Clique em **↻ sincronizar**
    na primeira vez (busca a lista via WhatsApp).
 5. Use **☆ tornar líder** ou **★ remover líder** para cada pessoa.
+   O bot salva o **wa_id** (ex.: `59619045069032@lid`), não o telefone —
+   é o mesmo ID que aparece em `message.author`.
 
 O bot passa a responder *imediatamente* às perguntas dos líderes
 selecionados — não é preciso reiniciar.

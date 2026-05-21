@@ -10,7 +10,7 @@
 import { EventEmitter } from 'node:events';
 
 import { logger } from '#platform/logger';
-import { normalizePhone } from '#core/normalize';
+import { normalizePhone, normalizeMemberId, memberIdFromParticipant } from '#core/normalize';
 import {
   upsertGroup,
   listGroups,
@@ -30,7 +30,7 @@ import { isReady as dbReady } from '#infra/db';
 class GroupService extends EventEmitter {
   constructor() {
     super();
-    /** groupId -> Set<phone> (somente dígitos). */
+    /** groupId -> Set<memberId> (ex.: 59619045069032@lid). */
     this.leadersByGroup = new Map();
   }
 
@@ -41,16 +41,22 @@ class GroupService extends EventEmitter {
     this.emit('leaders:change');
   }
 
-  /** Conjunto de líderes (phones) de um grupo (somente do cache). */
+  /** Conjunto de líderes (member ids) de um grupo (somente do cache). */
   leadersOfGroup(groupId) {
     return this.leadersByGroup.get(groupId) || new Set();
   }
 
   /** Atalho síncrono usado no pipeline. */
-  isLeaderOfGroup(groupId, phone) {
+  isLeaderOfGroup(groupId, memberId) {
     const set = this.leadersByGroup.get(groupId);
     if (!set) return false;
-    return set.has(normalizePhone(phone));
+    const id = normalizeMemberId(memberId);
+    if (!id) return false;
+    if (set.has(id)) return true;
+    // legado: líder salvo só com dígitos (antes do @lid)
+    const digits = id.split('@')[0];
+    if (digits !== id && set.has(digits)) return true;
+    return false;
   }
 
   // ── Sincronização com o WhatsApp ────────────────────────
@@ -91,7 +97,8 @@ class GroupService extends EventEmitter {
     const participants = chat.participants || [];
     const enriched = await Promise.all(
       participants.map(async (p) => {
-        const waId = p.id?._serialized || `${p.id?.user}@c.us`;
+        const waIdRaw = p.id?._serialized || `${p.id?.user}@c.us`;
+        const waId = normalizeMemberId(waIdRaw);
         const phone = normalizePhone(p.id?.user || waId.split('@')[0]);
         let pushname = null;
         let displayName = null;
@@ -145,20 +152,22 @@ class GroupService extends EventEmitter {
     await setGroupAllowed(groupId, allowed);
   }
 
-  async addLeader({ groupId, phone, pushname }) {
-    const clean = normalizePhone(phone);
-    if (!clean) throw new Error('telefone inválido');
+  async addLeader({ groupId, phone, waId, memberId, pushname }) {
+    const clean =
+      normalizeMemberId(memberId || waId || phone) ||
+      memberIdFromParticipant({ waId, phone });
+    if (!clean) throw new Error('identificador inválido');
     await addLeader({ groupId, phone: clean, pushname });
     await this.refreshLeadersCache();
-    this.emit('leader:added', { groupId, phone: clean });
+    this.emit('leader:added', { groupId, memberId: clean });
   }
 
-  async removeLeader({ groupId, phone }) {
-    const clean = normalizePhone(phone);
-    if (!clean) throw new Error('telefone inválido');
+  async removeLeader({ groupId, phone, waId, memberId }) {
+    const clean = normalizeMemberId(memberId || waId || phone);
+    if (!clean) throw new Error('identificador inválido');
     await removeLeader({ groupId, phone: clean });
     await this.refreshLeadersCache();
-    this.emit('leader:removed', { groupId, phone: clean });
+    this.emit('leader:removed', { groupId, memberId: clean });
   }
 }
 

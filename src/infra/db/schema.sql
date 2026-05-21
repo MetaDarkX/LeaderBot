@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS group_participants (
 -- ── Líderes selecionados POR grupo ────────────────────────
 CREATE TABLE IF NOT EXISTS group_leaders (
   group_id   TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  phone      TEXT NOT NULL,                       -- só dígitos
+  phone      TEXT NOT NULL,                       -- member id (ex.: 59619045069032@lid)
   pushname   TEXT,
   added_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (group_id, phone)

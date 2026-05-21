@@ -9,6 +9,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { useBot } from '@/context/BotContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import {
+  leaderMemberId,
+  normalizeManualMemberId,
+  participantMemberId,
+} from '@/lib/memberId';
 
 interface LeadersModalProps {
   group: GroupSummary | null;
@@ -61,12 +66,12 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
     void load();
   }, [group, leadersVersion, load]);
 
-  const addLeader = async (phone: string, name?: string | null) => {
+  const addLeader = async (waId: string, name?: string | null) => {
     if (!group) return;
     try {
       await api(`/api/groups/${encodeURIComponent(group.id)}/leaders`, {
         method: 'POST',
-        body: JSON.stringify({ phone, pushname: name }),
+        body: JSON.stringify({ waId, pushname: name }),
       });
       toast('Líder adicionado');
       await load();
@@ -76,11 +81,11 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
     }
   };
 
-  const removeLeader = async (phone: string) => {
+  const removeLeader = async (memberId: string) => {
     if (!group) return;
     try {
       await api(
-        `/api/groups/${encodeURIComponent(group.id)}/leaders/${encodeURIComponent(phone)}`,
+        `/api/groups/${encodeURIComponent(group.id)}/leaders/${encodeURIComponent(memberId)}`,
         { method: 'DELETE' },
       );
       toast('Líder removido');
@@ -92,16 +97,16 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
   };
 
   const onManualAdd = async () => {
-    const digits = manual.replace(/\D/g, '');
-    if (!digits) {
-      toast('Digite um número ou código', 'err');
+    const memberId = normalizeManualMemberId(manual);
+    if (!memberId) {
+      toast('Cole o ID (ex.: 59619045069032@lid)', 'err');
       return;
     }
-    if (digits.length < 8) {
-      setConfirmShort(digits);
+    if (!memberId.includes('@') && memberId.length < 8) {
+      setConfirmShort(memberId);
       return;
     }
-    await addLeader(digits, null);
+    await addLeader(memberId, null);
     setManual('');
   };
 
@@ -159,23 +164,26 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                 Nenhum líder definido
               </span>
             ) : (
-              leaders.map((l) => (
-                <span
-                  key={l.phone}
-                  className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent-soft px-2 py-1 text-xs"
-                >
-                  {l.pushname ? `${l.pushname} · ` : ''}
-                  <code>{l.phone}</code>
-                  <button
-                    type="button"
-                    className="ml-0.5 text-muted hover:text-danger"
-                    aria-label="Remover líder"
-                    onClick={() => void removeLeader(l.phone)}
+              leaders.map((l) => {
+                const id = leaderMemberId(l);
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent-soft px-2 py-1 text-xs"
                   >
-                    ×
-                  </button>
-                </span>
-              ))
+                    {l.pushname ? `${l.pushname} · ` : ''}
+                    <code>{id}</code>
+                    <button
+                      type="button"
+                      className="ml-0.5 text-muted hover:text-danger"
+                      aria-label="Remover líder"
+                      onClick={() => void removeLeader(id)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })
             )}
           </div>
         </section>
@@ -185,14 +193,14 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
             Adicionar manualmente
           </h3>
           <p className="mb-2 text-[11px] text-muted">
-            Cole o telefone ou código (LID) exato que aparece nas mensagens.
+            Cole o <strong className="text-ink-dim">wa_id</strong> exato (ex.{' '}
+            <code>59619045069032@lid</code>) — o mesmo que aparece nas mensagens.
           </p>
           <div className="flex gap-2">
             <Input
               value={manual}
               onChange={(e) => setManual(e.target.value)}
-              placeholder="ex.: 558587805298"
-              inputMode="numeric"
+              placeholder="ex.: 59619045069032@lid"
               onKeyDown={(e) => e.key === 'Enter' && void onManualAdd()}
             />
             <Button variant="primary" size="sm" onClick={() => void onManualAdd()}>
@@ -233,11 +241,12 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
           ) : (
             <ul className="max-h-[320px] space-y-1 overflow-y-auto">
               {filtered.map((p) => {
-                const name = p.display_name || p.pushname || `+${p.phone}`;
-                const isLid = (p.wa_id || '').endsWith('@lid');
+                const name = p.display_name || p.pushname || p.phone || 'Participante';
+                const memberId = participantMemberId(p);
+                const isLid = memberId.endsWith('@lid');
                 return (
                   <li
-                    key={`${p.phone}-${p.wa_id}`}
+                    key={memberId || p.phone}
                     className={`flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 py-2 ${
                       p.is_leader
                         ? 'border-accent/25 bg-accent-soft/30'
@@ -253,12 +262,12 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                           </Badge>
                         ) : null}
                       </p>
-                      <code className="text-[11px] text-muted">
-                        {isLid ? 'código' : 'telefone'}: {p.phone}
+                      <code className="block text-[11px] text-accent">
+                        id: {memberId || '—'}
                       </code>
-                      {p.wa_id && p.wa_id !== `${p.phone}@c.us` ? (
+                      {p.phone && !isLid ? (
                         <code className="block text-[10px] text-muted">
-                          wa_id: {p.wa_id}
+                          tel: {p.phone}
                         </code>
                       ) : null}
                     </div>
@@ -266,7 +275,8 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                       <Button
                         variant="warn"
                         size="sm"
-                        onClick={() => void removeLeader(p.phone)}
+                        onClick={() => memberId && void removeLeader(memberId)}
+                        disabled={!memberId}
                       >
                         ★ remover
                       </Button>
@@ -274,7 +284,8 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => void addLeader(p.phone, name)}
+                        onClick={() => memberId && void addLeader(memberId, name)}
+                        disabled={!memberId}
                       >
                         ☆ tornar líder
                       </Button>
@@ -294,7 +305,7 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
         okLabel="Adicionar"
         onClose={() => setConfirmShort(null)}
         onConfirm={() => {
-          if (confirmShort) void addLeader(confirmShort, null);
+          if (confirmShort) void addLeader(normalizeManualMemberId(confirmShort), null);
           setManual('');
         }}
       />

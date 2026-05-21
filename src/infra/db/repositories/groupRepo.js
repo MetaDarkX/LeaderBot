@@ -68,7 +68,12 @@ export async function listParticipants(groupId) {
   const r = await query(
     `SELECT gp.*, EXISTS(
         SELECT 1 FROM group_leaders gl
-        WHERE gl.group_id = gp.group_id AND gl.phone = gp.phone
+        WHERE gl.group_id = gp.group_id
+          AND (
+            gl.phone = LOWER(COALESCE(gp.wa_id, ''))
+            OR gl.phone = gp.phone
+            OR gl.phone = gp.phone || '@c.us'
+          )
      ) AS is_leader
      FROM group_participants gp
      WHERE gp.group_id = $1

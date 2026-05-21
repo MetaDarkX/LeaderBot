@@ -9,13 +9,13 @@
 
 import { stateService } from '#modules/state';
 import { groupService } from '#modules/groups';
-import { normalizePhone } from '#core/normalize';
+import { normalizePhone, normalizeMemberId } from '#core/normalize';
 import {
   looksLikeQuestion,
   validateQuestion as validateQuestionCore,
 } from '#core/questionFilter';
 
-export { normalizePhone, looksLikeQuestion };
+export { normalizePhone, normalizeMemberId, looksLikeQuestion };
 
 /**
  * Verifica se o autor é líder de um determinado grupo.
@@ -23,8 +23,7 @@ export { normalizePhone, looksLikeQuestion };
  */
 export function isLeaderOfGroup(authorId, groupId) {
   if (!authorId || !groupId) return false;
-  const phone = normalizePhone(String(authorId).split('@')[0]);
-  return groupService.isLeaderOfGroup(groupId, phone);
+  return groupService.isLeaderOfGroup(groupId, normalizeMemberId(authorId));
 }
 
 export function isAllowedGroup(groupId) {

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { logger } from '#platform/logger';
 import { stateService } from '#modules/state';
 import { groupService } from '#modules/groups';
-import { normalizePhone } from '#pipeline/filters';
+import { normalizeMemberId } from '#pipeline/filters';
 import { isReady as dbReady } from '#infra/db';
 
 /**
@@ -94,24 +94,28 @@ export function createGroupsRoutes({ client } = {}) {
 
   router.post('/groups/:id/leaders', async (req, res) => {
     const groupId = decodeURIComponent(req.params.id);
-    const phone = normalizePhone(req.body?.phone || '');
+    const memberId = normalizeMemberId(
+      req.body?.waId || req.body?.memberId || req.body?.phone || ''
+    );
     const pushname = req.body?.pushname ?? null;
-    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+    if (!memberId) {
+      return res.status(400).json({ error: 'waId ou memberId obrigatório' });
+    }
     try {
-      await groupService.addLeader({ groupId, phone, pushname });
-      logger.info(`[ui] líder adicionado em ${groupId}: ${phone}`);
-      res.json({ ok: true });
+      await groupService.addLeader({ groupId, memberId, pushname });
+      logger.info(`[ui] líder adicionado em ${groupId}: ${memberId}`);
+      res.json({ ok: true, memberId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  router.delete('/groups/:id/leaders/:phone', async (req, res) => {
+  router.delete('/groups/:id/leaders/:memberId', async (req, res) => {
     const groupId = decodeURIComponent(req.params.id);
-    const phone = normalizePhone(req.params.phone);
+    const memberId = normalizeMemberId(decodeURIComponent(req.params.memberId));
     try {
-      await groupService.removeLeader({ groupId, phone });
-      logger.info(`[ui] líder removido de ${groupId}: ${phone}`);
+      await groupService.removeLeader({ groupId, memberId });
+      logger.info(`[ui] líder removido de ${groupId}: ${memberId}`);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });

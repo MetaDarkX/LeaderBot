@@ -21,7 +21,7 @@ import {
   isAllowedGroup,
   isLeaderOfGroup,
   validateQuestion,
-  normalizePhone,
+  normalizeMemberId,
 } from './filters.js';
 import { canReply, markReplied } from '#modules/cooldown';
 import { answerQuestion } from './answerQuestion.js';
@@ -85,7 +85,8 @@ export function createMessageHandler(_client) {
       }
 
       const authorId = message.author || message.from;
-      ctx.author = normalizePhone((authorId || '').split('@')[0]);
+      const memberId = normalizeMemberId(authorId);
+      ctx.author = memberId || (authorId || '').split('@')[0];
 
       if (!chat.isGroup) {
         track(ACTIONS.IGNORED_DM, ctx);
@@ -105,7 +106,7 @@ export function createMessageHandler(_client) {
         }).catch(() => {});
       }
 
-      ctx.isLeader = isLeaderOfGroup(authorId, groupId);
+      ctx.isLeader = isLeaderOfGroup(memberId || authorId, groupId);
 
       // 3) Grupo não está na allowlist.
       if (!isAllowedGroup(groupId)) {
@@ -137,7 +138,7 @@ export function createMessageHandler(_client) {
       // 6) Cooldown por líder ANTES de tocar em mídia.
       //    Importante: se OCR/Whisper forem ativados, isso evita pagar
       //    extração de texto em mensagens que iriam ser bloqueadas.
-      const cd = canReply(authorId);
+      const cd = canReply(memberId || authorId);
       if (!cd.ok) {
         track(ACTIONS.IGNORED_COOLDOWN, ctx, `aguarda ${cd.waitMs}ms`);
         statsService.inc('ignoredByCooldown');
@@ -171,11 +172,11 @@ export function createMessageHandler(_client) {
       const { answer, source, elapsedMs, provider, model, usage, costUsd } = resolved;
 
       await message.reply(answer);
-      markReplied(authorId);
+      markReplied(memberId || authorId);
       chat.clearState?.().catch(() => {});
 
       statsService.recordAnswer({
-        leaderId: authorId,
+        leaderId: memberId || authorId,
         source,
         elapsedMs,
         usage,
@@ -184,7 +185,7 @@ export function createMessageHandler(_client) {
       historyService.add({
         groupName: ctx.groupName,
         groupId,
-        leaderId: authorId,
+        leaderId: memberId || authorId,
         question: text,
         answer,
         source,
