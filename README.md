@@ -360,9 +360,12 @@ O `Dockerfile.production` é multi-stage:
 
 1. **deps**: instala apenas `dependencies` (`npm ci --omit=dev`) usando
    cache do BuildKit.
-2. **runtime**: `node:20-bookworm-slim` + Chromium do sistema + libs
-   necessárias para o Puppeteer. Sobe como usuário `node`, usa `tini`
-   como PID 1 e expõe `3000`.
+2. **runtime**: `node:20-bookworm-slim` + Chromium + UI estática em
+   `src/web/public/` (rode `npm run dashboard:build` antes do deploy;
+   a imagem **não** recompila o React no Docker — mais estável no EasyPanel).
+
+> **EasyPanel / VPS pequena:** após mudar arquivos em `dashboard/`, execute
+> `npm run dashboard:build`, commite `src/web/public/` e faça redeploy.
 
 Volumes persistidos:
 - `wppbot-pgdata` → dados do Postgres

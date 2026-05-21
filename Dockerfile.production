@@ -19,22 +19,12 @@
 #    docker compose --profile production up -d --build
 # ============================================================
 
-# ─── Stage 1: build da dashboard (React) ──────────────────────
-FROM node:20-bookworm-slim AS dashboard
-
-WORKDIR /app/dashboard
-
-COPY dashboard/package.json dashboard/package-lock.json* ./
-
-RUN --mount=type=cache,target=/root/.npm \
-    if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
-
-COPY dashboard/ ./
-
-RUN npm run build
+# Dashboard React: usamos os artefatos já buildados em src/web/public/
+# (commitados no repo). Rode `npm run dashboard:build` antes do deploy.
+# Build dentro do Docker costuma falhar no EasyPanel (memória / Node+Vite).
 
 
-# ─── Stage 2: dependências de produção ────────────────────────
+# ─── Stage 1: dependências de produção ────────────────────────
 FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
@@ -49,7 +39,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --no-audit --no-fund
 
 
-# ─── Stage 3: runtime ─────────────────────────────────────────
+# ─── Stage 2: runtime ─────────────────────────────────────────
 FROM node:20-bookworm-slim AS runtime
 
 # Instala o Chromium e libs nativas que o whatsapp-web.js/Puppeteer exigem.
@@ -96,7 +86,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY src ./src
 COPY ecosystem.config.cjs ./
-COPY --from=dashboard /app/src/web/public ./src/web/public
+COPY src/web/public ./src/web/public
 
 # Pastas que serão volumes em runtime — criadas aqui já com o owner certo
 # para o usuário não-root.
