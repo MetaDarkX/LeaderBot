@@ -4,6 +4,9 @@
 //  a dashboard web e registra eventos.
 // ============================================================
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 
@@ -33,6 +36,18 @@ logger.info(
 );
 logger.info(`cooldown: ${config.bot.cooldownMs}ms | cache: ${config.bot.cacheTtlSeconds}s`);
 logger.info(`banco de dados: ${config.database.url.replace(/:[^:@]+@/, ':***@')}`);
+
+const sessionDir = defaultSessionDir();
+const sessionStore = path.join(sessionDir, 'Default');
+const hasStoredSession =
+  fs.existsSync(sessionDir) &&
+  (fs.existsSync(sessionStore) || fs.readdirSync(sessionDir).length > 0);
+logger.info(
+  `sessão WhatsApp (${config.session.name}): pasta ${config.session.dataPath}` +
+    (hasStoredSession
+      ? ' — dados encontrados, deve reconectar sem QR'
+      : ' — vazia, será necessário escanear o QR Code')
+);
 
 const client = createClient();
 

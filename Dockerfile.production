@@ -69,6 +69,7 @@ RUN apt-get update \
         libxss1 \
         tini \
         wget \
+        gosu \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
@@ -87,13 +88,11 @@ COPY package.json package-lock.json ./
 COPY src ./src
 COPY ecosystem.config.cjs ./
 COPY src/web/public ./src/web/public
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# Pastas que serão volumes em runtime — criadas aqui já com o owner certo
-# para o usuário não-root.
-RUN mkdir -p /app/.wwebjs_auth /app/.wwebjs_cache /app/logs \
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /app/.wwebjs_auth /app/.wwebjs_cache /app/logs \
     && chown -R node:node /app
-
-USER node
 
 EXPOSE 3000
 
@@ -102,5 +101,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD wget -q --spider --timeout=3 "http://127.0.0.1:${WEB_PORT}/api/state" || exit 1
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "src/index.js"]

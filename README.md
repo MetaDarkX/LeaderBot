@@ -280,6 +280,39 @@ git pull
 docker compose --profile production up -d --build
 ```
 
+### EasyPanel (evitar QR a cada redeploy)
+
+O WhatsApp salva a sessão em **`.wwebjs_auth/`** (dentro do container:
+`/app/.wwebjs_auth`). Se essa pasta **não** for um volume persistente,
+cada redeploy cria um container novo e vazio → pede QR de novo.
+
+No app do EasyPanel, adicione **Volumes / Mounts**:
+
+| Mount path (no container) | Tipo |
+|---------------------------|------|
+| `/app/.wwebjs_auth` | Volume nomeado (ex.: `leaderbot-auth`) |
+| `/app/.wwebjs_cache` | Volume nomeado (opcional, recomendado) |
+| `/app/logs` | Volume nomeado (opcional) |
+
+Variáveis de ambiente (runtime, não build args):
+
+```env
+WWEBJS_AUTH_PATH=/app/.wwebjs_auth
+SESSION_NAME=wppbot-session
+```
+
+**Não mude** `SESSION_NAME` entre deploys — isso troca a subpasta da sessão
+e força novo QR.
+
+**Graceful shutdown:** se o painel tiver “Stop timeout” / “Kill timeout”,
+use **≥ 15 segundos**. Se o container for morto antes do Chromium gravar
+cookies/IndexedDB, a sessão corrompe e o próximo boot pede QR.
+
+Após o deploy, confira nos logs:
+
+- `sessão WhatsApp ... dados encontrados` → deve subir sem QR
+- `sessão WhatsApp ... vazia` → falta volume ou primeira conexão
+
 ### Backup da sessão e do banco
 
 ```bash
