@@ -39,43 +39,26 @@ perguntas postadas pelo(s) **líder(es)** de uma gincana, usando IA
 ```
 wppbot/
 ├── src/
-│   ├── db/                       # ◀ camada PostgreSQL
-│   │   ├── index.js              # pool de conexão + helpers
-│   │   ├── schema.sql            # schema (idempotente)
-│   │   ├── migrate.js            # aplica o schema no boot
-│   │   └── repositories/
-│   │       ├── groupRepo.js
-│   │       ├── leaderRepo.js
-│   │       ├── historyRepo.js
-│   │       └── configRepo.js
-│   ├── services/
-│   │   ├── aiService.js          # OpenAI / Gemini
-│   │   ├── cacheService.js       # cache em memória
-│   │   ├── cooldownService.js    # cooldown por líder
-│   │   ├── stateService.js       # estado + configs em runtime (persiste no DB)
-│   │   ├── statsService.js       # métricas agregadas
-│   │   ├── historyService.js     # histórico Q/A (memória + DB)
-│   │   ├── groupService.js       # grupos, participantes e líderes por grupo
-│   │   ├── activityService.js    # feed ao vivo
-│   │   ├── ocrService.js         # placeholder OCR (futuro)
-│   │   └── audioService.js       # placeholder áudio (futuro)
-│   ├── handlers/
-│   │   ├── messageHandler.js     # roteador principal
-│   │   ├── questionHandler.js    # cache → IA → fallback
-│   │   └── errorHandler.js       # handlers globais
-│   ├── utils/
-│   │   ├── logger.js             # logs + bus de eventos
-│   │   ├── retry.js              # retry + timeout
-│   │   ├── filters.js            # validações
-│   │   └── helpers.js            # utilitários
-│   ├── web/                      # ◀ dashboard web
-│   │   ├── server.js             # Express + Socket.IO + API
-│   │   └── public/
-│   │       ├── index.html
-│   │       ├── styles.css
-│   │       └── app.js
-│   ├── config.js                 # config central + validação
+│   ├── config/                   # variáveis de ambiente por domínio (ai, bot, db…)
+│   ├── core/                     # domínio puro (prompt, pricing, filtros, normalize)
+│   ├── platform/                 # logger, retry, crash handlers
+│   ├── infra/db/                 # PostgreSQL (pool, migrate, schema, repositories)
+│   ├── providers/                # adapters externos (ai, ocr, audio, whatsapp)
+│   ├── modules/                  # features stateful (cache, state, groups, history…)
+│   ├── pipeline/                 # use cases (handleIncomingMessage, answerQuestion)
+│   ├── web/                      # dashboard HTTP + WebSocket
+│   │   ├── server.js             # bootstrap Express + Socket.IO
+│   │   ├── auth.js               # token opcional (API + WS)
+│   │   ├── socket.js             # broadcast em tempo real
+│   │   ├── routes/               # um arquivo por domínio de rota
+│   │   └── public/               # UI estática
 │   └── index.js                  # entrypoint
+```
+
+Imports via aliases Node (`package.json#imports`), ex.: `#config`, `#providers/ai`, `#modules/groups`, `#pipeline/handleIncomingMessage`.
+
+```
+wppbot/ (continuação)
 ├── docker-compose.yml            # serviço Postgres
 ├── ecosystem.config.cjs          # config PM2
 ├── .env.example
@@ -415,15 +398,15 @@ O `ecosystem.config.cjs` já vem com:
 
 ## 9. Suporte futuro: OCR e Áudio
 
-Já existem dois services prontos para serem implementados:
+Já existem dois providers prontos para serem implementados:
 
-- `src/services/ocrService.js` — extrai texto de imagens.
-- `src/services/audioService.js` — transcreve áudios.
+- `src/providers/ocr/index.js` — extrai texto de imagens.
+- `src/providers/audio/index.js` — transcreve áudios.
 
 Ambos têm exemplos em comentário usando o `openai` que você **já tem
 instalado** (GPT-4o Vision para imagem, Whisper para áudio). Basta descomentar
-o exemplo, ajustar e pronto: o `messageHandler` já chama esses services
-automaticamente quando uma mensagem chega com imagem ou áudio.
+o exemplo, ajustar e pronto: o pipeline (`handleIncomingMessage`) já chama
+esses providers automaticamente quando uma mensagem chega com imagem ou áudio.
 
 ---
 

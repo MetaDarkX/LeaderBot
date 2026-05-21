@@ -169,6 +169,8 @@ let ACTIVITY = [];
 let STATE = null;
 let GROUPS = [];
 let groupsSearch = '';
+let groupsLoaded = false;
+let groupsLoadingPromise = null;
 let historySearchTerm = '';
 let activityFilterValue = 'all';
 let logLevelFilter = 'all';
@@ -228,8 +230,9 @@ function applyRoute(route) {
   elements.sidebar.classList.remove('open');
   elements.sidebarBackdrop.classList.remove('show');
 
-  // ao entrar em grupos, garante load atualizado
-  if (route === 'grupos') loadGroups();
+  // só dispara load na primeira visita à rota (depois disso, atualizações
+  // chegam via socket `leaders:change` ou pelo botão de refresh)
+  if (route === 'grupos' && !groupsLoaded) loadGroups();
 }
 window.addEventListener('hashchange', () => applyRoute(getRouteFromHash()));
 
@@ -521,27 +524,54 @@ function renderGroups() {
   });
 }
 
-async function loadGroups() {
-  // não substituímos a UI atual se já tem dados (evita "flash")
-  if (!GROUPS.length) {
+async function loadGroups({ refresh = false } = {}) {
+  // Evita chamadas duplicadas concorrentes — comum quando trocamos de rota
+  // ao mesmo tempo que chega um evento `leaders:change`.
+  if (groupsLoadingPromise) return groupsLoadingPromise;
+
+  if (!GROUPS.length && !refresh) {
     elements.groupList.innerHTML = `
       <div class="empty-state">
         <div class="empty-illustration">⌛</div>
         <strong>Carregando grupos…</strong>
+        <p class="muted small">Lendo do banco local.</p>
       </div>`;
   }
-  try {
-    const { groups } = await api('/api/groups');
-    GROUPS = groups || [];
-    renderGroups();
-  } catch (err) {
-    elements.groupList.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-illustration">⚠️</div>
-        <strong>Erro ao carregar grupos</strong>
-        <p class="muted small">${escapeHTML(err.message)}</p>
-      </div>`;
+  const refreshBtn = $('refreshGroupsBtn');
+  if (refresh && refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = '↻ sincronizando…';
   }
+
+  groupsLoadingPromise = (async () => {
+    try {
+      const url = refresh ? '/api/groups?refresh=1' : '/api/groups';
+      const { groups } = await api(url);
+      GROUPS = groups || [];
+      groupsLoaded = true;
+      renderGroups();
+      if (refresh) toast('Grupos sincronizados', 'ok');
+    } catch (err) {
+      if (!GROUPS.length) {
+        elements.groupList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-illustration">⚠️</div>
+            <strong>Erro ao carregar grupos</strong>
+            <p class="muted small">${escapeHTML(err.message)}</p>
+          </div>`;
+      } else {
+        toast(`Erro ao recarregar: ${err.message}`, 'err');
+      }
+    } finally {
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = '↻ atualizar';
+      }
+      groupsLoadingPromise = null;
+    }
+  })();
+
+  return groupsLoadingPromise;
 }
 
 // ─── Modal: gerenciamento de líderes ─────────────────────
@@ -758,7 +788,7 @@ $('clearActivityBtnAlt')?.addEventListener('click', async () => {
   catch (e) { toast(e.message, 'err'); }
 });
 
-$('refreshGroupsBtn')?.addEventListener('click', () => { loadGroups(); toast('Atualizando…'); });
+$('refreshGroupsBtn')?.addEventListener('click', () => loadGroups({ refresh: true }));
 
 // Busca de grupos
 elements.groupsSearch?.addEventListener('input', () => {

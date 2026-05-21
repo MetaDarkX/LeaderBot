@@ -7,6 +7,32 @@
   "engines": {
     "node": ">=18.17.0"
   },
+  "imports": {
+    "#config": "./src/config/index.js",
+    "#config/*": "./src/config/*.js",
+    "#core/*": "./src/core/*.js",
+    "#platform/*": "./src/platform/*.js",
+    "#platform/helpers": "./src/platform/helpers.js",
+    "#infra/db": "./src/infra/db/index.js",
+    "#infra/db/*": "./src/infra/db/*.js",
+    "#infra/db/repositories/*": "./src/infra/db/repositories/*.js",
+    "#providers/ai": "./src/providers/ai/index.js",
+    "#providers/ai/*": "./src/providers/ai/*.js",
+    "#providers/ocr": "./src/providers/ocr/index.js",
+    "#providers/audio": "./src/providers/audio/index.js",
+    "#providers/whatsapp": "./src/providers/whatsapp/index.js",
+    "#providers/whatsapp/*": "./src/providers/whatsapp/*.js",
+    "#modules/cache": "./src/modules/cache/index.js",
+    "#modules/cooldown": "./src/modules/cooldown/index.js",
+    "#modules/state": "./src/modules/state/index.js",
+    "#modules/stats": "./src/modules/stats/index.js",
+    "#modules/history": "./src/modules/history/index.js",
+    "#modules/activity": "./src/modules/activity/index.js",
+    "#modules/groups": "./src/modules/groups/index.js",
+    "#pipeline/*": "./src/pipeline/*.js",
+    "#web/*": "./src/web/*.js",
+    "#web/routes/*": "./src/web/routes/*.js"
+  },
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",

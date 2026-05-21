@@ -4,92 +4,37 @@
 //  a dashboard web e registra eventos.
 // ============================================================
 
-import fs from 'node:fs';
-import path from 'node:path';
-
-import pkg from 'whatsapp-web.js';
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 
-import { config } from './config.js';
-import { logger } from './utils/logger.js';
-import { installGlobalErrorHandlers } from './handlers/errorHandler.js';
-import { createMessageHandler } from './handlers/messageHandler.js';
-import { stateService } from './services/stateService.js';
-import { historyService } from './services/historyService.js';
-import { groupService } from './services/groupService.js';
+import { config } from '#config';
+import { logger } from '#platform/logger';
+import { installCrashHandlers } from '#platform/crashHandlers';
+import { createMessageHandler } from '#pipeline/handleIncomingMessage';
+import { stateService } from '#modules/state';
+import { historyService } from '#modules/history';
+import { groupService } from '#modules/groups';
+import { validateConfiguredModel } from '#providers/ai';
+import {
+  createClient,
+  cleanupStaleChromiumLocks,
+  defaultSessionDir,
+} from '#providers/whatsapp';
 import { startWebServer } from './web/server.js';
-import { migrate } from './db/migrate.js';
-import { closePool } from './db/index.js';
+import { migrate, closePool } from '#infra/db';
 
-const { Client, LocalAuth } = pkg;
-
-/**
- * Quando o Chromium é morto antes de fechar limpo (ex.: pm2 restart com
- * kill_timeout curto, SIGKILL), sobram arquivos de lock no perfil do
- * usuário (SingletonLock/SingletonCookie/SingletonSocket + LOCK do LevelDB).
- * Eles fazem o Chromium recusar o perfil existente e abrir um novo "limpo",
- * o que apaga a sessão do WhatsApp Web e força um novo QR Code.
- *
- * Esta função remove APENAS esses locks (nunca a pasta Default/ onde ficam
- * cookies/IndexedDB com o token da sessão), tornando o restart resiliente.
- */
-function cleanupStaleChromiumLocks(sessionDir) {
-  if (!sessionDir || !fs.existsSync(sessionDir)) return;
-  const lockNames = [
-    'SingletonLock',
-    'SingletonCookie',
-    'SingletonSocket',
-    'lockfile',
-  ];
-  for (const name of lockNames) {
-    const p = path.join(sessionDir, name);
-    try {
-      const stat = fs.lstatSync(p);
-      if (stat.isSymbolicLink() || stat.isFile()) {
-        fs.unlinkSync(p);
-        logger.debug(`[session] removido lock órfão: ${name}`);
-      }
-    } catch (err) {
-      if (err.code !== 'ENOENT') {
-        logger.warn(`[session] não consegui remover ${name}: ${err.message}`);
-      }
-    }
-  }
-}
-
-installGlobalErrorHandlers();
+installCrashHandlers();
 
 logger.banner('Bot de Gincana WhatsApp');
-logger.info(`provedor de IA: ${config.ai.provider.toUpperCase()}`);
+const _ai = validateConfiguredModel();
+logger.info(`provedor de IA: ${_ai.provider.toUpperCase()} (modelo: ${_ai.model})`);
 logger.info(
   `grupos permitidos: ${config.bot.allowedGroups.length ? config.bot.allowedGroups.join(', ') : '(qualquer)'}`
 );
 logger.info(`cooldown: ${config.bot.cooldownMs}ms | cache: ${config.bot.cacheTtlSeconds}s`);
 logger.info(`banco de dados: ${config.database.url.replace(/:[^:@]+@/, ':***@')}`);
 
-const puppeteerArgs = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-accelerated-2d-canvas',
-  '--no-first-run',
-  '--no-zygote',
-  '--disable-gpu',
-];
-
-const client = new Client({
-  authStrategy: new LocalAuth({
-    clientId: config.session.name,
-    dataPath: config.session.dataPath,
-  }),
-  puppeteer: {
-    headless: true,
-    args: puppeteerArgs,
-    ...(config.session.chromePath ? { executablePath: config.session.chromePath } : {}),
-  },
-  webVersionCache: { type: 'local' },
-});
+const client = createClient();
 
 // ─── Eventos do cliente ────────────────────────────────────────────────────
 
@@ -140,8 +85,7 @@ client.on('disconnected', (reason) => {
   logger.warn(`Cliente desconectou: ${reason}. Tentando reiniciar em 5s...`);
   stateService.setStatus('disconnected', { lastError: String(reason) });
   const t = setTimeout(() => {
-    const sessionDir = path.join(config.session.dataPath, `session-${config.session.name}`);
-    cleanupStaleChromiumLocks(sessionDir);
+    cleanupStaleChromiumLocks();
     client.initialize().catch((e) => logger.error('reinit:', e));
   }, 5000);
   t.unref();
@@ -213,8 +157,7 @@ async function main() {
   // Remove locks órfãos do perfil do Chromium ANTES do initialize, senão um
   // boot anterior mal finalizado faz o Chromium descartar o perfil e a
   // sessão do WhatsApp (pede QR de novo).
-  const sessionDir = path.join(config.session.dataPath, `session-${config.session.name}`);
-  cleanupStaleChromiumLocks(sessionDir);
+  cleanupStaleChromiumLocks(defaultSessionDir());
 
   client.initialize().catch((err) => {
     logger.error('Falha fatal ao inicializar client:', err);
