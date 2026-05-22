@@ -196,28 +196,34 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
             Cole o <strong className="text-ink-dim">wa_id</strong> exato (ex.{' '}
             <code>59619045069032@lid</code>) — o mesmo que aparece nas mensagens.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={manual}
               onChange={(e) => setManual(e.target.value)}
               placeholder="ex.: 59619045069032@lid"
               onKeyDown={(e) => e.key === 'Enter' && void onManualAdd()}
             />
-            <Button variant="primary" size="sm" onClick={() => void onManualAdd()}>
+            <Button
+              variant="primary"
+              size="md"
+              block
+              className="shrink-0 sm:inline-flex sm:w-auto sm:min-h-8"
+              onClick={() => void onManualAdd()}
+            >
               adicionar
             </Button>
           </div>
         </section>
 
         <section>
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filtrar por nome, telefone ou código…"
+              placeholder="Filtrar participantes…"
               type="search"
             />
-            <span className="shrink-0 text-[11px] text-muted">
+            <span className="shrink-0 text-center text-[11px] text-muted sm:text-left">
               {filtered.length}/{participants.length}
             </span>
           </div>
@@ -239,7 +245,7 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
               }
             />
           ) : (
-            <ul className="max-h-[320px] space-y-1 overflow-y-auto">
+            <ul className="max-h-[50dvh] space-y-2 overflow-y-auto overscroll-contain sm:max-h-[320px] sm:space-y-1">
               {filtered.map((p) => {
                 const name = p.display_name || p.pushname || p.phone || 'Participante';
                 const memberId = participantMemberId(p);
@@ -247,14 +253,14 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                 return (
                   <li
                     key={memberId || p.phone}
-                    className={`flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 py-2 ${
+                    className={`flex flex-col gap-3 rounded-[var(--radius-md)] border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:rounded-[var(--radius-sm)] sm:py-2 ${
                       p.is_leader
                         ? 'border-accent/25 bg-accent-soft/30'
                         : 'border-border-soft bg-surface-2/40'
                     }`}
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-ink">
+                      <p className="text-sm font-medium text-ink break-words">
                         {name}
                         {p.is_admin ? (
                           <Badge tone="info" className="ml-1">
@@ -262,11 +268,11 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                           </Badge>
                         ) : null}
                       </p>
-                      <code className="block text-[11px] text-accent">
-                        id: {memberId || '—'}
+                      <code className="mt-1 block break-all text-[11px] text-accent">
+                        {memberId || '—'}
                       </code>
                       {p.phone && !isLid ? (
-                        <code className="block text-[10px] text-muted">
+                        <code className="block text-[10px] text-muted break-all">
                           tel: {p.phone}
                         </code>
                       ) : null}
@@ -274,16 +280,20 @@ export function LeadersModal({ group, onClose }: LeadersModalProps) {
                     {p.is_leader ? (
                       <Button
                         variant="warn"
-                        size="sm"
+                        size="md"
+                        block
+                        className="shrink-0 sm:inline-flex sm:w-auto sm:min-h-8"
                         onClick={() => memberId && void removeLeader(memberId)}
                         disabled={!memberId}
                       >
-                        ★ remover
+                        ★ remover líder
                       </Button>
                     ) : (
                       <Button
                         variant="primary"
-                        size="sm"
+                        size="md"
+                        block
+                        className="shrink-0 sm:inline-flex sm:w-auto sm:min-h-8"
                         onClick={() => memberId && void addLeader(memberId, name)}
                         disabled={!memberId}
                       >

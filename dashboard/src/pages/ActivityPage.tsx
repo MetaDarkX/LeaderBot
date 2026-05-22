@@ -24,16 +24,17 @@ export function ActivityPage() {
               value={filter}
               onChange={setFilter}
               aria-label="Filtrar atividade"
+              className="max-lg:w-full"
               options={[
                 { value: 'all', label: 'todas' },
-                { value: 'answered', label: 'respondidas' },
+                { value: 'answered', label: 'ok' },
                 { value: 'leader', label: 'líder' },
-                { value: 'ignored', label: 'ignoradas' },
+                { value: 'ignored', label: 'ign.' },
               ]}
             />
             <Button
-              variant="ghost"
-              size="sm"
+              variant="secondary"
+              size="md"
               onClick={() => {
                 void api('/api/activity/clear', { method: 'POST' })
                   .then(() => toast('Feed limpo'))
@@ -45,7 +46,11 @@ export function ActivityPage() {
           </>
         }
       />
-      <ActivityFeed items={activity} filter={filter} className="max-h-[calc(100dvh-220px)] overflow-y-auto" />
+      <ActivityFeed
+        items={activity}
+        filter={filter}
+        className="max-h-[calc(100dvh-var(--mobile-header-h)-var(--bottom-nav-h)-12rem)] overflow-y-auto overscroll-contain lg:max-h-[calc(100dvh-220px)]"
+      />
     </>
   );
 }

@@ -33,18 +33,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[min(100%,320px)] flex-col gap-2"
+        className={cn(
+          'pointer-events-none fixed z-[100] flex flex-col gap-2 px-3',
+          'inset-x-0 bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom,0px)+0.75rem)]',
+          'lg:inset-x-auto lg:bottom-4 lg:right-4 lg:left-auto lg:w-[min(100%,320px)] lg:px-0',
+        )}
         aria-live="polite"
       >
         <AnimatePresence>
           {items.map((t) => (
             <motion.div
               key={t.id}
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4 }}
+              exit={{ opacity: 0, y: 8 }}
               className={cn(
-                'pointer-events-auto rounded-[var(--radius-sm)] border px-3 py-2 text-sm shadow-lg backdrop-blur-md',
+                'pointer-events-auto rounded-[var(--radius-md)] border px-4 py-3 text-sm shadow-lg backdrop-blur-md',
                 t.kind === 'ok'
                   ? 'border-accent/25 bg-surface-2/95 text-ink'
                   : 'border-danger/30 bg-danger-soft text-ink',

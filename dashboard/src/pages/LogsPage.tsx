@@ -34,15 +34,16 @@ export function LogsPage() {
               value={level}
               onChange={setLevel}
               aria-label="Filtrar nível de log"
+              className="max-lg:w-full"
               options={[
                 { value: 'all', label: 'tudo' },
-                { value: 'debug', label: 'debug+' },
+                { value: 'debug', label: 'dbg+' },
                 { value: 'info', label: 'info+' },
                 { value: 'warn', label: 'warn+' },
                 { value: 'error', label: 'erro' },
               ]}
             />
-            <Button variant="ghost" size="sm" onClick={() => setLogsLocal([])}>
+            <Button variant="secondary" size="md" onClick={() => setLogsLocal([])}>
               limpar
             </Button>
           </>
@@ -50,7 +51,7 @@ export function LogsPage() {
       />
 
       <pre
-        className="max-h-[calc(100dvh-200px)] overflow-auto rounded-[var(--radius-md)] border border-border-soft bg-surface-0 p-4 font-mono text-[12px] leading-relaxed text-ink-dim"
+        className="max-h-[calc(100dvh-var(--mobile-header-h)-var(--bottom-nav-h)-11rem)] overflow-auto overscroll-contain rounded-[var(--radius-md)] border border-border-soft bg-surface-0 p-3 font-mono text-[11px] leading-relaxed text-ink-dim sm:p-4 sm:text-[12px] lg:max-h-[calc(100dvh-200px)]"
         aria-live="polite"
       >
         {filtered.length ? (

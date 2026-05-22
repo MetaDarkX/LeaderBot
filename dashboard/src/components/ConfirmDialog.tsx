@@ -25,13 +25,15 @@ export function ConfirmDialog({
       title={title}
       size="sm"
       footer={
-        <>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:justify-end">
+          <Button variant="ghost" size="md" block className="sm:inline-flex sm:w-auto" onClick={onClose}>
             Cancelar
           </Button>
           <Button
             variant={danger ? 'danger' : 'warn'}
-            size="sm"
+            size="md"
+            block
+            className="sm:inline-flex sm:w-auto"
             onClick={() => {
               onConfirm();
               onClose();
@@ -39,7 +41,7 @@ export function ConfirmDialog({
           >
             {okLabel}
           </Button>
-        </>
+        </div>
       }
     >
       <p className="text-sm text-ink-dim">{message}</p>

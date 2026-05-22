@@ -56,11 +56,10 @@ export function GroupsPage() {
               placeholder="Buscar grupo…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-48"
             />
             <Button
-              variant="ghost"
-              size="sm"
+              variant="secondary"
+              size="md"
               loading={groupsLoading}
               onClick={() => void loadGroups({ refresh: true })}
             >
@@ -110,7 +109,7 @@ export function GroupsPage() {
             hidden: {},
             show: { transition: { staggerChildren: 0.04 } },
           }}
-          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         >
           {filtered.map((g) => (
             <motion.article
@@ -138,15 +137,23 @@ export function GroupsPage() {
                   <Badge>sem líder</Badge>
                 )}
               </div>
-              <div className="mt-auto flex flex-wrap gap-2">
+              <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   variant="primary"
-                  size="sm"
+                  size="md"
+                  block
+                  className="sm:inline-flex sm:w-auto sm:min-h-8"
                   onClick={() => setSelected(g)}
                 >
                   ★ gerenciar líderes
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => addToAllowlist(g.id)}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  block
+                  className="sm:inline-flex sm:w-auto sm:min-h-8"
+                  onClick={() => addToAllowlist(g.id)}
+                >
                   {g.allowed ? '✓ permitido' : '+ permitir'}
                 </Button>
               </div>

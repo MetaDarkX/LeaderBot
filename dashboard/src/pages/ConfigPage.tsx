@@ -163,11 +163,11 @@ export function ConfigPage() {
               />
             </Field>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="primary" onClick={() => void save()}>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button variant="primary" size="md" block className="sm:inline-flex sm:w-auto" onClick={() => void save()}>
               Salvar configurações
             </Button>
-            <Button variant="ghost" onClick={syncFromState}>
+            <Button variant="ghost" size="md" block className="sm:inline-flex sm:w-auto" onClick={syncFromState}>
               Recarregar
             </Button>
             {dirty ? (
@@ -181,14 +181,21 @@ export function ConfigPage() {
             title="Testar IA"
             description="Envia uma pergunta direto ao provedor configurado."
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={testQ}
               onChange={(e) => setTestQ(e.target.value)}
               placeholder="Ex.: qual a capital do Brasil?"
               onKeyDown={(e) => e.key === 'Enter' && void testAi()}
             />
-            <Button variant="primary" loading={testing} onClick={() => void testAi()}>
+            <Button
+              variant="primary"
+              size="md"
+              block
+              loading={testing}
+              className="shrink-0 sm:inline-flex sm:w-auto sm:min-h-8"
+              onClick={() => void testAi()}
+            >
               Perguntar
             </Button>
           </div>

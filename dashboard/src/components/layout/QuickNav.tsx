@@ -61,7 +61,7 @@ const item = {
 
 export function QuickNav() {
   return (
-    <section aria-label="Acesso rápido" className="mt-8">
+    <section aria-label="Acesso rápido" className="mt-8 hidden lg:block">
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
         Acesso rápido
       </h2>
@@ -69,7 +69,7 @@ export function QuickNav() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
       >
         {QUICK_LINKS.map((link) => (
           <motion.div key={link.id} variants={item}>

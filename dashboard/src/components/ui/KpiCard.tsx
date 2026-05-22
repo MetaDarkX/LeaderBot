@@ -31,7 +31,7 @@ export function KpiCard({
       whileHover={{ y: -2 }}
       transition={{ duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'flex flex-col gap-1 rounded-[var(--radius-md)] border p-4 hover-lift',
+        'flex flex-col gap-0.5 rounded-[var(--radius-md)] border p-3 hover-lift sm:gap-1 sm:p-4',
         accents[accent],
         'bg-surface-1/70',
       )}
@@ -39,7 +39,7 @@ export function KpiCard({
       <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
         {label}
       </span>
-      <strong className="text-2xl font-semibold tracking-tight text-ink tabular-nums">
+      <strong className="text-xl font-semibold tracking-tight text-ink tabular-nums sm:text-2xl">
         {value}
       </strong>
       {foot ? <span className="text-[11px] text-muted">{foot}</span> : null}

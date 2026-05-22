@@ -35,10 +35,9 @@ export function HistoryPage() {
               placeholder="Buscar pergunta…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-52"
             />
-            <span className="text-xs text-muted">
-              {filtered.length} de {history.length} entradas
+            <span className="self-center text-xs text-muted sm:shrink-0">
+              {filtered.length} de {history.length}
             </span>
           </>
         }

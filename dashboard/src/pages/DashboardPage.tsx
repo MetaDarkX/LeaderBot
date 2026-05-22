@@ -43,7 +43,13 @@ export function DashboardPage() {
         title="Painel"
         description="Visão geral em tempo real do bot."
         actions={
-          <Button variant="ghost" size="sm" onClick={() => setConfirmReset(true)}>
+          <Button
+            variant="ghost"
+            size="md"
+            block
+            className="sm:inline-flex sm:w-auto sm:min-h-8"
+            onClick={() => setConfirmReset(true)}
+          >
             ↺ resetar métricas
           </Button>
         }
@@ -51,7 +57,7 @@ export function DashboardPage() {
 
       <ConnectionHero />
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard label="Recebidas" value={recv} foot="total desde o boot" delay={0.02} />
         <KpiCard
           label="Respondidas"
@@ -98,18 +104,18 @@ export function DashboardPage() {
 
       <QuickNav />
 
-      <Card className="mt-6">
+      <Card className="mt-4 sm:mt-6">
         <CardHeader
           title="Atividade recente"
           description="Últimas mensagens vistas pelo bot."
           action={
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <span className="inline-flex items-center gap-1 text-[11px] text-accent">
                 <span className="size-1.5 animate-pulse rounded-full bg-accent" />
                 ao vivo
               </span>
-              <Link to="/atividade">
-                <Button variant="ghost" size="sm">
+              <Link to="/atividade" className="w-full sm:w-auto">
+                <Button variant="ghost" size="md" block className="sm:inline-flex sm:w-auto sm:min-h-8">
                   ver tudo →
                 </Button>
               </Link>

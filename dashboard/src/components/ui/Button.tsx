@@ -18,8 +18,8 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 gap-1.5 px-3 text-xs',
-  md: 'h-9 gap-2 px-4 text-sm',
+  sm: 'min-h-10 gap-1.5 px-3.5 text-xs sm:min-h-8',
+  md: 'min-h-11 gap-2 px-4 text-sm sm:min-h-9',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center rounded-[var(--radius-sm)] font-medium',
+        'inline-flex touch-target items-center justify-center rounded-[var(--radius-sm)] font-medium',
         'transition-[color,background-color,transform,box-shadow] duration-200 ease-[var(--ease-smooth)]',
         'disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100',
         variants[variant],

@@ -20,7 +20,7 @@ export function Card({
       className={cn(
         'rounded-[var(--radius-md)] border border-border-soft bg-surface-1/85',
         'shadow-[0_1px_0_rgb(255_255_255/0.04),0_8px_32px_rgb(0_0_0/0.32)] backdrop-blur-sm',
-        padding && 'p-5',
+        padding && 'p-4 sm:p-5',
         hoverLift && 'hover-lift',
         className,
       )}
@@ -40,7 +40,7 @@ export function CardHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
       <div>
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
           {title}
