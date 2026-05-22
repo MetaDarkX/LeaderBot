@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { ACTION_LABELS, matchesActivityFilter, type ActivityFilter } from '@/lib/activity';
 import type { ActivityItem } from '@/types';
 import { cn } from '@/lib/cn';
@@ -36,47 +37,55 @@ export function ActivityFeed({
         className,
       )}
     >
-      {list.map((item) => {
-        const label = ACTION_LABELS[item.action] || item.action;
-        const isAnswered = item.action === 'answered';
-        const isIgnored = item.action.startsWith('ignored:');
+      <AnimatePresence initial={false}>
+        {list.map((item) => {
+          const label = ACTION_LABELS[item.action] || item.action;
+          const isAnswered = item.action === 'answered';
+          const isIgnored = item.action.startsWith('ignored:');
+          const key = `${item.at}-${item.action}-${item.author ?? ''}`;
 
-        return (
-          <article
-            key={`${item.at}-${item.action}-${item.author ?? ''}`}
-            className="grid grid-cols-[auto_auto_1fr_auto] items-start gap-x-2 gap-y-0.5 px-3 py-2.5 text-xs hover:bg-surface-hover/50"
-          >
-            <time className="font-mono text-[11px] text-muted tabular-nums">
-              {fmtTime(item.at)}
-            </time>
-            <span
-              className={cn(
-                'rounded px-1 py-0.5 text-[10px] font-semibold tracking-wide',
-                isAnswered && 'bg-accent-soft text-accent',
-                isIgnored && 'bg-surface-3 text-muted',
-                item.action === 'error' && 'bg-danger-soft text-danger',
-              )}
+          return (
+            <motion.article
+              key={key}
+              layout
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="grid grid-cols-[auto_auto_1fr_auto] items-start gap-x-2 gap-y-0.5 px-3 py-2.5 text-xs transition-colors hover:bg-surface-hover/60"
             >
-              {label}
-            </span>
-            <p className="min-w-0 text-ink-dim">
-              <span className="font-medium text-ink">
-                {item.groupName || 'DM'}
+              <time className="font-mono text-[11px] text-muted tabular-nums">
+                {fmtTime(item.at)}
+              </time>
+              <span
+                className={cn(
+                  'rounded px-1 py-0.5 text-[10px] font-semibold tracking-wide',
+                  isAnswered && 'bg-accent-soft text-accent',
+                  isIgnored && 'bg-surface-3 text-muted',
+                  item.action === 'error' && 'bg-danger-soft text-danger',
+                )}
+              >
+                {label}
               </span>
-              {item.author ? ` · ${item.author}` : ''}
-              {item.body ? (
-                <span className="text-muted"> &quot;{item.body}&quot;</span>
-              ) : null}
-              {item.reason ? (
-                <span className="text-muted"> ({item.reason})</span>
-              ) : null}
-            </p>
-            <span className="text-right" aria-hidden>
-              {item.isLeader ? '👑' : ''}
-            </span>
-          </article>
-        );
-      })}
+              <p className="min-w-0 text-ink-dim">
+                <span className="font-medium text-ink">
+                  {item.groupName || 'DM'}
+                </span>
+                {item.author ? ` · ${item.author}` : ''}
+                {item.body ? (
+                  <span className="text-muted"> &quot;{item.body}&quot;</span>
+                ) : null}
+                {item.reason ? (
+                  <span className="text-muted"> ({item.reason})</span>
+                ) : null}
+              </p>
+              <span className="text-right" aria-hidden>
+                {item.isLeader ? '👑' : ''}
+              </span>
+            </motion.article>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }

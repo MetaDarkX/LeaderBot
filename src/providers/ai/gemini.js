@@ -25,28 +25,36 @@ function extractGeminiText(response) {
     .trim();
 }
 
-let _client = null;
-function client() {
-  if (!_client) {
-    const genAI = new GoogleGenerativeAI(config.ai.gemini.apiKey);
-    _client = genAI.getGenerativeModel({
-      model: config.ai.gemini.model,
-      systemInstruction: SYSTEM_PROMPT,
-    });
-  }
-  return _client;
+let _defaultModel = null;
+
+function getModel(systemInstruction) {
+  const genAI = new GoogleGenerativeAI(config.ai.gemini.apiKey);
+  return genAI.getGenerativeModel({
+    model: config.ai.gemini.model,
+    systemInstruction,
+  });
+}
+
+function defaultModel() {
+  if (!_defaultModel) _defaultModel = getModel(SYSTEM_PROMPT);
+  return _defaultModel;
 }
 
 /**
  * Faz uma pergunta para o Google Gemini.
  * @param {string} question
+ * @param {{ systemPrompt?: string, maxOutputTokens?: number, temperature?: number }} [opts]
  * @returns {Promise<{answer: string, model: string, usage: object}>}
  */
-export async function askGemini(question) {
-  const model = config.ai.gemini.model;
-  const result = await client().generateContent({
+export async function askGemini(question, opts = {}) {
+  const model = opts.systemPrompt ? getModel(opts.systemPrompt) : defaultModel();
+  const modelName = config.ai.gemini.model;
+  const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: question }] }],
-    generationConfig: { temperature: TEMPERATURE, maxOutputTokens: MAX_OUTPUT_TOKENS },
+    generationConfig: {
+      temperature: opts.temperature ?? TEMPERATURE,
+      maxOutputTokens: opts.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+    },
   });
   const response = result?.response;
   const answer = extractGeminiText(response);
@@ -63,5 +71,5 @@ export async function askGemini(question) {
     outputTokens: um.candidatesTokenCount ?? 0,
     totalTokens: um.totalTokenCount ?? 0,
   };
-  return { answer, model, usage };
+  return { answer, model: modelName, usage };
 }

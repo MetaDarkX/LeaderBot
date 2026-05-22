@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useBot } from '@/context/BotContext';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/Input';
@@ -54,7 +55,15 @@ export function HistoryPage() {
           }
         />
       ) : (
-        <ul className="space-y-2">
+        <motion.ul
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.03 } },
+          }}
+          className="space-y-2"
+        >
           {filtered.map((h) => {
             const phone = (h.leaderId || '').split('@')[0];
             const sourceTone =
@@ -67,9 +76,13 @@ export function HistoryPage() {
                     : 'neutral';
 
             return (
-              <li
+              <motion.li
                 key={`${h.at}-${h.question.slice(0, 24)}`}
-                className="rounded-[var(--radius-md)] border border-border-soft bg-surface-1/60 p-4"
+                variants={{
+                  hidden: { opacity: 0, x: -6 },
+                  show: { opacity: 1, x: 0, transition: { duration: 0.25 } },
+                }}
+                className="rounded-[var(--radius-md)] border border-border-soft bg-surface-1/60 p-4 transition-colors hover:border-border hover:bg-surface-1/80"
               >
                 <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
                   <span>
@@ -85,10 +98,10 @@ export function HistoryPage() {
                 </div>
                 <p className="text-sm font-medium text-ink">{h.question}</p>
                 <p className="mt-2 text-sm text-ink-dim">{h.answer}</p>
-              </li>
+              </motion.li>
             );
           })}
-        </ul>
+        </motion.ul>
       )}
     </>
   );

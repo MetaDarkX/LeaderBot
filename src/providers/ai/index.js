@@ -61,6 +61,7 @@ const EMPTY_USAGE = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
  * Em caso de falha total, devolve `config.ai.fallbackAnswer`.
  *
  * @param {string} question
+ * @param {{ systemPrompt?: string, maxOutputTokens?: number, temperature?: number, label?: string }} [opts]
  * @returns {Promise<{
  *   answer: string,
  *   provider: string,
@@ -70,16 +71,17 @@ const EMPTY_USAGE = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
  *   costUsd: number,
  * }>}
  */
-export async function askAI(question) {
+export async function askAI(question, opts = {}) {
   const { provider, fn, model: fallbackModel } = pickProvider();
   maybeWarnUnknownModel(provider, fallbackModel);
+  const label = opts.label ? `ai:${opts.label}` : `ai:${provider}`;
 
   try {
-    const result = await retry(() => fn(question), {
+    const result = await retry(() => fn(question, opts), {
       retries: config.ai.maxRetries,
       baseDelayMs: 300,
       timeoutMs: config.ai.timeoutMs,
-      label: `ai:${provider}`,
+      label,
       shouldRetry,
     });
 

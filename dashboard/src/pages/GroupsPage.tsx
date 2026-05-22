@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useBot } from '@/context/BotContext';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LeadersModal } from '@/components/LeadersModal';
@@ -102,11 +103,23 @@ export function GroupsPage() {
           title={`Nenhum grupo combina com "${search}"`}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.04 } },
+          }}
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        >
           {filtered.map((g) => (
-            <article
+            <motion.article
               key={g.id}
-              className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/70 p-4 transition-colors hover:border-border"
+              variants={{
+                hidden: { opacity: 0, y: 12 },
+                show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+              }}
+              className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/70 p-4 hover-lift hover:border-border-strong"
             >
               <div className="min-w-0">
                 <h3 className="truncate font-semibold text-ink" title={g.name}>
@@ -137,9 +150,9 @@ export function GroupsPage() {
                   {g.allowed ? '✓ permitido' : '+ permitir'}
                 </Button>
               </div>
-            </article>
+            </motion.article>
           ))}
-        </div>
+        </motion.div>
       )}
 
       <LeadersModal group={selected} onClose={() => setSelected(null)} />

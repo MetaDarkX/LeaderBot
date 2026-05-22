@@ -12,8 +12,9 @@
 //    5. bot está pausado?
 //    6. cooldown do líder            ← ANTES de OCR/áudio
 //    7. extrai texto (texto + OCR + áudio)
-//    8. parece pergunta?
-//    9. resolveQuestion (cache → IA)
+//    8. parece pergunta? (heurística)
+//    9. classifica com IA + buffer de contexto
+//   10. resolveQuestion (cache → IA)
 // ============================================================
 
 import { logger } from '#platform/logger';
@@ -25,7 +26,9 @@ import {
 } from './filters.js';
 import { canReply, markReplied } from '#modules/cooldown';
 import { answerQuestion } from './answerQuestion.js';
+import { classifyGincanaQuestion } from './classifyMessage.js';
 import { extractText } from '#providers/whatsapp';
+import * as chatBuffer from '#modules/chatBuffer';
 import { stateService } from '#modules/state';
 import { statsService } from '#modules/stats';
 import { historyService } from '#modules/history';
@@ -53,6 +56,10 @@ function track(action, ctx, reason) {
   const who = ctx.author || '?';
   const body = ctx.body ? `"${truncate(ctx.body, 60)}"` : '';
   logger.info(`📨 ${where} ${leader} ${who} → ${tag.toUpperCase()} ${body}${reason ? ` (${reason})` : ''}`);
+}
+
+function messageId(message) {
+  return message.id?._serialized || message.id?.id || String(message.timestamp ?? Date.now());
 }
 
 /**
@@ -115,6 +122,17 @@ export function createMessageHandler(_client) {
         return;
       }
 
+      const msgId = messageId(message);
+      const preview = (message.body || '').trim();
+      if (preview) {
+        chatBuffer.append(groupId, {
+          id: msgId,
+          author: ctx.author,
+          isLeader: ctx.isLeader,
+          text: preview,
+        });
+      }
+
       // 4) Autor não é líder do grupo — REGISTRAMOS no feed para o usuário
       // ver que o bot está "ouvindo" o grupo.
       if (!ctx.isLeader) {
@@ -154,7 +172,17 @@ export function createMessageHandler(_client) {
         return;
       }
 
-      // 8) Filtros (parece pergunta? tamanho ok?)
+      chatBuffer.amend(groupId, msgId, text);
+      if (!chatBuffer.window(groupId).some((e) => e.id === msgId)) {
+        chatBuffer.append(groupId, {
+          id: msgId,
+          author: ctx.author,
+          isLeader: true,
+          text,
+        });
+      }
+
+      // 8) Filtros heurísticos (parece pergunta? tamanho ok?)
       const validation = validateQuestion(text);
       if (!validation.ok) {
         track(ACTIONS.IGNORED_FILTER, ctx, validation.reason);
@@ -162,7 +190,24 @@ export function createMessageHandler(_client) {
         return;
       }
 
-      // 9) Tudo certo — vai responder.
+      // 9) IA classifica a última mensagem usando o buffer de contexto.
+      const classification = await classifyGincanaQuestion({
+        groupId,
+        text,
+        author: ctx.author,
+        messageId: msgId,
+        isLeader: true,
+      });
+      if (!classification.isGincana) {
+        const reason = classification.fallback
+          ? 'classificação indisponível'
+          : `não é pergunta da gincana (${classification.label})`;
+        track(ACTIONS.IGNORED_CLASSIFY, ctx, reason);
+        statsService.inc('ignoredByClassify');
+        return;
+      }
+
+      // 10) Tudo certo — vai responder.
       logger.info(`❓ ${ctx.groupName} · líder ${ctx.author}: ${truncate(text, 80)}`);
 
       chat.sendSeen?.().catch(() => {});

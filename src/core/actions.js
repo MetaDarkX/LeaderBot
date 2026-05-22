@@ -12,6 +12,7 @@ export const ACTIONS = Object.freeze({
   IGNORED_LEADER:  'ignored:not-leader',
   IGNORED_PAUSED:  'ignored:paused',
   IGNORED_FILTER:  'ignored:filter',
+  IGNORED_CLASSIFY:'ignored:classify',
   IGNORED_COOLDOWN:'ignored:cooldown',
   IGNORED_NO_TEXT: 'ignored:no-text',
   ERROR:           'error',

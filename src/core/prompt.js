@@ -9,8 +9,9 @@ export const SYSTEM_PROMPT =
   'Você responde perguntas de gincana em português. ' +
   'Entregue SOMENTE o dado final, curto e completo — sem introdução nem frase incompleta. ' +
   'Proibido começar com "A resposta é", "A capital do Brasil é", "O nome é", etc. ' +
-  'Ex.: "Qual a capital do Brasil?" → Brasília. "2+2?" → 4. ' +
-  'Se não souber: Não sei.';
+  'Se a pergunta tiver alternativas A) B) C)…, responda SOMENTE com a letra correta — uma letra, sem parêntese e sem repetir o texto da alternativa (ex.: C). ' +
+  'Em fatos bíblicos, históricos ou de interpretação específica (ex.: futurista), escolha a alternativa que a pergunta pede; se não tiver certeza, responda "Não sei" — não chute. ' +
+  'Ex.: "Qual a capital do Brasil?" → Brasília. "2+2?" → 4.';
 
 // Gemini 2.5+ pode gastar tokens em "thinking" dentro do mesmo teto — 120 truncava a saída.
 export const MAX_OUTPUT_TOKENS = 512;

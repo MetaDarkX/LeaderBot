@@ -29,6 +29,7 @@
     "#modules/history": "./src/modules/history/index.js",
     "#modules/activity": "./src/modules/activity/index.js",
     "#modules/groups": "./src/modules/groups/index.js",
+    "#modules/chatBuffer": "./src/modules/chatBuffer/index.js",
     "#pipeline/*": "./src/pipeline/*.js",
     "#web/*": "./src/web/*.js",
     "#web/routes/*": "./src/web/routes/*.js"

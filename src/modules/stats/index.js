@@ -22,6 +22,7 @@ class StatsService extends EventEmitter {
       ignoredByPause: 0,
       ignoredByCooldown: 0,
       ignoredByFilter: 0,
+      ignoredByClassify: 0,
       totalLatencyMs: 0,   // somatório usado para média
       lastLatencyMs: 0,
       tokensIn: 0,         // total de input tokens consumidos

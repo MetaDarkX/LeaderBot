@@ -4,35 +4,44 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --color-surface-0: #07090f;
-  --color-surface-1: #0c111b;
-  --color-surface-2: #131a27;
-  --color-surface-3: #1a2333;
-  --color-surface-hover: #1f2a3d;
+  --color-surface-0: #06080e;
+  --color-surface-1: #0b1019;
+  --color-surface-2: #121a28;
+  --color-surface-3: #1a2436;
+  --color-surface-hover: #212d42;
 
-  --color-border: #1f2a3d;
-  --color-border-soft: #182236;
+  --color-border: #243044;
+  --color-border-soft: #1a2436;
+  --color-border-strong: #2f3f58;
 
-  --color-ink: #e7eef9;
-  --color-ink-dim: #b8c4dc;
-  --color-muted: #7886a2;
+  --color-ink: #edf2fb;
+  --color-ink-dim: #c5d0e6;
+  --color-muted: #7b8aa6;
+  --color-muted-dim: #5c6b85;
 
-  --color-accent: #25d366;
-  --color-accent-dim: #1ea954;
-  --color-accent-soft: rgb(37 211 102 / 0.12);
+  --color-accent: #22c55e;
+  --color-accent-dim: #16a34a;
+  --color-accent-soft: rgb(34 197 94 / 0.14);
+  --color-accent-glow: rgb(34 197 94 / 0.35);
 
   --color-warn: #f0b429;
   --color-warn-soft: rgb(240 180 41 / 0.14);
-  --color-danger: #ef4444;
-  --color-danger-soft: rgb(239 68 68 / 0.14);
+  --color-danger: #f87171;
+  --color-danger-soft: rgb(248 113 113 / 0.14);
   --color-info: #38bdf8;
   --color-info-soft: rgb(56 189 248 / 0.14);
   --color-violet: #c084fc;
   --color-violet-soft: rgb(192 132 252 / 0.14);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
 }
 
 @layer base {
@@ -41,16 +50,16 @@
   }
 
   html {
-    @apply antialiased;
+    @apply antialiased scroll-smooth;
     color-scheme: dark;
   }
 
   body {
     @apply m-0 min-h-dvh bg-surface-0 font-sans text-sm leading-relaxed text-ink;
     background:
-      radial-gradient(1100px 600px at 0% -10%, rgb(56 189 248 / 0.06), transparent 60%),
-      radial-gradient(900px 500px at 100% 0%, rgb(192 132 252 / 0.06), transparent 60%),
-      radial-gradient(800px 400px at 50% 100%, rgb(37 211 102 / 0.04), transparent 60%),
+      radial-gradient(1200px 640px at -5% -15%, rgb(56 189 248 / 0.07), transparent 55%),
+      radial-gradient(1000px 520px at 105% -5%, rgb(192 132 252 / 0.06), transparent 55%),
+      radial-gradient(900px 480px at 50% 110%, rgb(34 197 94 / 0.05), transparent 55%),
       var(--color-surface-0);
   }
 
@@ -67,5 +76,42 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .glass-panel {
+    background: rgb(11 16 25 / 0.72);
+    backdrop-filter: blur(12px) saturate(1.2);
+  }
+
+  .hover-lift {
+    transition:
+      transform var(--duration-normal) var(--ease-smooth),
+      box-shadow var(--duration-normal) var(--ease-smooth),
+      border-color var(--duration-fast) ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.04),
+      0 12px 32px rgb(0 0 0 / 0.35);
+  }
+
+  .nav-active-glow {
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

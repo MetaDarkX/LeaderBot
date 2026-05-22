@@ -10,6 +10,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { QuickNav } from '@/components/layout/QuickNav';
 import { useState } from 'react';
 
 export function DashboardPage() {
@@ -82,18 +83,20 @@ export function DashboardPage() {
         />
       </section>
 
-      <section className="mt-4 grid grid-cols-3 gap-2 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/50 p-3 text-center sm:max-w-md">
+      <section className="mt-4 grid grid-cols-3 gap-3 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/60 p-4 text-center sm:max-w-lg">
         {[
           ['Pausa', s.ignoredByPause],
           ['Cooldown', s.ignoredByCooldown],
           ['Filtradas', s.ignoredByFilter],
         ].map(([label, val]) => (
-          <div key={String(label)}>
+          <div key={String(label)} className="rounded-[var(--radius-sm)] bg-surface-2/40 px-2 py-1">
             <span className="block text-[11px] text-muted">{label}</span>
             <strong className="text-lg tabular-nums text-ink">{val}</strong>
           </div>
         ))}
       </section>
+
+      <QuickNav />
 
       <Card className="mt-6">
         <CardHeader

@@ -5,10 +5,10 @@ type Accent = 'default' | 'accent' | 'info' | 'violet' | 'danger';
 
 const accents: Record<Accent, string> = {
   default: 'border-border-soft',
-  accent: 'border-accent/20 bg-accent-soft/30',
-  info: 'border-info/20 bg-info-soft/40',
-  violet: 'border-violet/20 bg-violet-soft/40',
-  danger: 'border-danger/20 bg-danger-soft/40',
+  accent: 'border-accent/25 bg-accent-soft/40',
+  info: 'border-info/25 bg-info-soft/50',
+  violet: 'border-violet/25 bg-violet-soft/50',
+  danger: 'border-danger/25 bg-danger-soft/50',
 };
 
 export function KpiCard({
@@ -26,16 +26,17 @@ export function KpiCard({
 }) {
   return (
     <motion.article
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'flex flex-col gap-1 rounded-[var(--radius-md)] border p-4',
+        'flex flex-col gap-1 rounded-[var(--radius-md)] border p-4 hover-lift',
         accents[accent],
-        'bg-surface-1/60',
+        'bg-surface-1/70',
       )}
     >
-      <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
         {label}
       </span>
       <strong className="text-2xl font-semibold tracking-tight text-ink tabular-nums">
