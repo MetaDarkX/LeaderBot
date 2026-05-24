@@ -6,7 +6,7 @@ import {
   enrichMessages,
   fetchProfilePicUrl,
   getMeProfile,
-  mapPool,
+  serializeChat,
 } from '#modules/messaging';
 
 /**
@@ -48,14 +48,15 @@ export function createChatRoutes({ client, io } = {}) {
   router.get('/chats', async (_req, res) => {
     if (!requireClient(res)) return;
     try {
-      const me = await getMeProfile(client);
-      const chats = await client.getChats();
-      const filtered = chats.filter(
-        (c) => c.id?._serialized && !c.id._serialized.includes('@broadcast'),
-      );
+      const [me, rawChats] = await Promise.all([
+        getMeProfile(client),
+        client.getChats(),
+      ]);
 
-      const list = await mapPool(filtered, (c) => enrichChat(client, c), 6);
-      list.sort((a, b) => b.timestamp - a.timestamp);
+      const list = rawChats
+        .filter((c) => c.id?._serialized && !c.id._serialized.includes('@broadcast'))
+        .map((c) => serializeChat(c))
+        .sort((a, b) => b.timestamp - a.timestamp);
 
       res.json({ chats: list, me });
     } catch (err) {

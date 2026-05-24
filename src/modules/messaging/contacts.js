@@ -101,20 +101,14 @@ export async function getMeProfile(client) {
  */
 export async function enrichChat(client, chat) {
   const base = serializeChat(chat);
-  const chatId = chat.id._serialized;
-
-  let name = base.name;
   if (!chat.isGroup) {
     try {
-      name = await fetchDisplayName(client, chatId);
+      base.name = await fetchDisplayName(client, chat.id._serialized);
     } catch {
-      /* chat.name */
+      /* mantém chat.name */
     }
   }
-
-  const avatarUrl = await fetchProfilePicUrl(client, chatId);
-
-  return { ...base, name, avatarUrl };
+  return base;
 }
 
 /**
@@ -132,22 +126,19 @@ export async function enrichMessage(client, message, chat) {
       ...base,
       author: me.id,
       authorName: me.name,
-      authorAvatarUrl: me.avatarUrl,
+      authorAvatarUrl: null,
       isGroup,
     };
   }
 
   const authorId = message.author || message.from;
-  const [authorName, authorAvatarUrl] = await Promise.all([
-    fetchDisplayName(client, authorId),
-    fetchProfilePicUrl(client, authorId),
-  ]);
+  const authorName = await fetchDisplayName(client, authorId);
 
   return {
     ...base,
     author: authorId,
     authorName,
-    authorAvatarUrl,
+    authorAvatarUrl: null,
     isGroup,
   };
 }
@@ -161,21 +152,14 @@ export async function enrichMessages(client, messages, chat) {
   const me = await getMeProfile(client);
   const isGroup = !!chat.isGroup;
   const authorIds = new Set();
-
   for (const m of messages) {
     if (!m.fromMe) authorIds.add(m.author || m.from);
   }
 
   const names = new Map();
-  const pics = new Map();
   await Promise.all(
     [...authorIds].map(async (id) => {
-      const [n, p] = await Promise.all([
-        fetchDisplayName(client, id),
-        fetchProfilePicUrl(client, id),
-      ]);
-      names.set(id, n);
-      pics.set(id, p);
+      names.set(id, await fetchDisplayName(client, id));
     }),
   );
 
@@ -186,7 +170,7 @@ export async function enrichMessages(client, messages, chat) {
         ...base,
         author: me.id,
         authorName: me.name,
-        authorAvatarUrl: me.avatarUrl,
+        authorAvatarUrl: null,
         isGroup,
       };
     }
@@ -195,7 +179,7 @@ export async function enrichMessages(client, messages, chat) {
       ...base,
       author: authorId,
       authorName: names.get(authorId) || authorId.split('@')[0],
-      authorAvatarUrl: pics.get(authorId) ?? null,
+      authorAvatarUrl: null,
       isGroup,
     };
   });

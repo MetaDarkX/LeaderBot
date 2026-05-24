@@ -17,11 +17,11 @@ export function attachMessaging({ client, io } = {}) {
   const onNewMessage = async (message) => {
     try {
       const chat = await message.getChat();
-      const [enrichedMessage, enrichedChat] = await Promise.all([
-        enrichMessage(client, message, chat),
-        enrichChat(client, chat),
-      ]);
-      io.emit('chat:message', { message: enrichedMessage, chat: enrichedChat });
+      const enrichedMessage = await enrichMessage(client, message, chat);
+      io.emit('chat:message', {
+        message: enrichedMessage,
+        chat: serializeChat(chat),
+      });
     } catch (err) {
       logger.warn(`[chat] broadcast: ${err.message}`);
     }

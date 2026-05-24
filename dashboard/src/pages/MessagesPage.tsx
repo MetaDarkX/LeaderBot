@@ -68,11 +68,16 @@ export function MessagesPage() {
   }, [reduce]);
 
   const loadChats = useCallback(async () => {
-    if (!wppReady) return;
+    if (!wppReady) {
+      setChatsLoading(false);
+      return;
+    }
     setChatsLoading(true);
     setChatsError(null);
     try {
-      const data = await api<{ chats: ChatSummary[]; me: ChatMe }>('/api/chats');
+      const data = await api<{ chats: ChatSummary[]; me: ChatMe }>('/api/chats', {
+        timeoutMs: 60_000,
+      });
       setChats(data.chats ?? []);
       if (data.me) setMe(data.me);
     } catch (err) {
@@ -200,7 +205,12 @@ export function MessagesPage() {
             Conecte o WhatsApp no painel para ver as conversas.
           </motion.p>
         ) : chatsLoading && !chats.length ? (
-          <ChatListSkeleton />
+          <>
+            <ChatListSkeleton />
+            <p className="px-4 pb-4 text-center text-xs text-muted">
+              Buscando conversas no WhatsApp…
+            </p>
+          </>
         ) : chatsError ? (
           <motion.div {...fadeUp} className="px-4 py-6 text-center">
             <p className="text-sm text-danger">{chatsError}</p>
