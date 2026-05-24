@@ -32,4 +32,11 @@ export function attachMessaging({ client, io } = {}) {
 }
 
 export { serializeChat, serializeMessage };
-export { enrichChat, enrichMessage, enrichMessages, getMeProfile, fetchProfilePicUrl } from './contacts.js';
+export {
+  enrichChat,
+  enrichMessage,
+  enrichMessages,
+  getMeProfile,
+  fetchProfilePicUrl,
+  mapPool,
+} from './contacts.js';
