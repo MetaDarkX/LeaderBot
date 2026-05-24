@@ -14,7 +14,8 @@ export function createApiAuthMiddleware(token) {
     if (!req.path.startsWith('/api')) return next();
     const sent =
       req.headers['x-auth-token'] ||
-      (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      (req.headers.authorization || '').replace(/^Bearer\s+/i, '') ||
+      (req.method === 'GET' && typeof req.query.token === 'string' ? req.query.token : '');
     if (sent === token) return next();
     return res.status(401).json({ error: 'unauthorized' });
   };

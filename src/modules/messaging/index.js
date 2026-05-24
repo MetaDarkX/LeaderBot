@@ -4,6 +4,7 @@
 // ============================================================
 
 import { logger } from '#platform/logger';
+import { enrichChat, enrichMessage } from './contacts.js';
 import { serializeChat, serializeMessage } from './serialize.js';
 
 /**
@@ -16,11 +17,11 @@ export function attachMessaging({ client, io } = {}) {
   const onNewMessage = async (message) => {
     try {
       const chat = await message.getChat();
-      const payload = {
-        message: serializeMessage(message, chat),
-        chat: serializeChat(chat),
-      };
-      io.emit('chat:message', payload);
+      const [enrichedMessage, enrichedChat] = await Promise.all([
+        enrichMessage(client, message, chat),
+        enrichChat(client, chat),
+      ]);
+      io.emit('chat:message', { message: enrichedMessage, chat: enrichedChat });
     } catch (err) {
       logger.warn(`[chat] broadcast: ${err.message}`);
     }
@@ -31,3 +32,4 @@ export function attachMessaging({ client, io } = {}) {
 }
 
 export { serializeChat, serializeMessage };
+export { enrichChat, enrichMessage, enrichMessages, getMeProfile, fetchProfilePicUrl } from './contacts.js';

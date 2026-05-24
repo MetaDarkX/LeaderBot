@@ -99,12 +99,19 @@ export interface HelloPayload {
   cache?: unknown;
 }
 
+export interface ChatMe {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface ChatSummary {
   id: string;
   name: string;
   isGroup: boolean;
   timestamp: number;
   unreadCount: number;
+  avatarUrl?: string | null;
   lastMessage?: {
     body: string;
     fromMe: boolean;
@@ -119,6 +126,9 @@ export interface ChatMessage {
   type: string;
   fromMe: boolean;
   author: string | null;
+  authorName?: string | null;
+  authorAvatarUrl?: string | null;
+  isGroup?: boolean;
   timestamp: number;
   hasMedia: boolean;
 }

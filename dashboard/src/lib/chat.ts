@@ -1,4 +1,12 @@
+import { AUTH_TOKEN } from '@/lib/token';
 import type { ChatMessage, ChatSummary } from '@/types';
+
+/** URL do proxy de avatar (aceita ?token= na query). */
+export function profilePicSrc(contactId: string | null | undefined): string | null {
+  if (!contactId) return null;
+  const q = AUTH_TOKEN ? `?token=${encodeURIComponent(AUTH_TOKEN)}` : '';
+  return `/api/profile-pic/${encodeURIComponent(contactId)}${q}`;
+}
 
 export function fmtChatTime(ts: number): string {
   if (!ts) return '';
