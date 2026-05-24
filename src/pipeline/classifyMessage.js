@@ -6,6 +6,7 @@
 import { config } from '#config';
 import { askAI } from '#providers/ai';
 import * as chatBuffer from '#modules/chatBuffer';
+import { isStrongGincanaQuestion } from '#core/questionFilter';
 import {
   CLASSIFY_SYSTEM_PROMPT,
   buildClassifyUserPrompt,
@@ -19,6 +20,10 @@ import {
 export async function classifyGincanaQuestion({ groupId, text, author, messageId, isLeader = true }) {
   if (!config.bot.classifyWithAi) {
     return { isGincana: true, label: 'classificação desativada' };
+  }
+
+  if (isStrongGincanaQuestion(text)) {
+    return { isGincana: true, label: 'heurística forte', skipped: true };
   }
 
   const entries = chatBuffer.window(groupId);
@@ -36,12 +41,22 @@ export async function classifyGincanaQuestion({ groupId, text, author, messageId
     temperature: 0,
     label: 'classify',
   });
+  if (result.fallback) {
+    return {
+      isGincana: true,
+      label: 'classificação indisponível (heurística)',
+      provider: result.provider,
+      elapsedMs: Date.now() - t0,
+      fallback: true,
+    };
+  }
+
   const parsed = parseClassifyAnswer(result.answer);
 
   return {
     ...parsed,
     provider: result.provider,
     elapsedMs: Date.now() - t0,
-    fallback: result.fallback,
+    fallback: false,
   };
 }

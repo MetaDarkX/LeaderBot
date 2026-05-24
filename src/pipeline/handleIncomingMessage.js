@@ -10,7 +10,7 @@
 //    3. allowlist do grupo
 //    4. é líder do grupo?
 //    5. bot está pausado?
-//    6. cooldown do líder            ← ANTES de OCR/áudio
+//    6. fila por líder + cooldown só antes do reply
 //    7. extrai texto (texto + OCR + áudio)
 //    8. parece pergunta? (heurística)
 //    9. classifica com IA + buffer de contexto
@@ -25,6 +25,8 @@ import {
   normalizeMemberId,
 } from './filters.js';
 import { canReply, markReplied } from '#modules/cooldown';
+import { runExclusive } from '#modules/leaderQueue';
+import { sleep } from '#platform/helpers';
 import { answerQuestion } from './answerQuestion.js';
 import { classifyGincanaQuestion } from './classifyMessage.js';
 import { extractText } from '#providers/whatsapp';
@@ -60,6 +62,115 @@ function track(action, ctx, reason) {
 
 function messageId(message) {
   return message.id?._serialized || message.id?.id || String(message.timestamp ?? Date.now());
+}
+
+/**
+ * Processa mensagem de líder (fila + cooldown só antes de responder).
+ * @param {import('whatsapp-web.js').Message} message
+ * @param {import('whatsapp-web.js').Chat} chat
+ */
+async function processLeaderMessage(message, chat, ctx, groupId, memberId, authorId, msgId) {
+  if (stateService.paused) {
+    track(ACTIONS.IGNORED_PAUSED, ctx);
+    statsService.inc('ignoredByPause');
+    return;
+  }
+
+  statsService.inc('considered');
+
+  const text = await extractText(message);
+  ctx.body = text;
+
+  if (!text) {
+    track(ACTIONS.IGNORED_NO_TEXT, ctx, 'sem texto/OCR/transcrição');
+    return;
+  }
+
+  chatBuffer.amend(groupId, msgId, text);
+  if (!chatBuffer.window(groupId).some((e) => e.id === msgId)) {
+    chatBuffer.append(groupId, {
+      id: msgId,
+      author: ctx.author,
+      isLeader: true,
+      text,
+    });
+  }
+
+  const validation = validateQuestion(text);
+  if (!validation.ok) {
+    track(ACTIONS.IGNORED_FILTER, ctx, validation.reason);
+    statsService.inc('ignoredByFilter');
+    return;
+  }
+
+  const classification = await classifyGincanaQuestion({
+    groupId,
+    text,
+    author: ctx.author,
+    messageId: msgId,
+    isLeader: true,
+  });
+  if (!classification.isGincana) {
+    const reason = classification.fallback
+      ? 'classificação indisponível'
+      : `não é pergunta da gincana (${classification.label})`;
+    track(ACTIONS.IGNORED_CLASSIFY, ctx, reason);
+    statsService.inc('ignoredByClassify');
+    return;
+  }
+
+  logger.info(`❓ ${ctx.groupName} · líder ${ctx.author}: ${truncate(text, 80)}`);
+
+  chat.sendSeen?.().catch(() => {});
+  chat.sendStateTyping?.().catch(() => {});
+
+  const resolved = await answerQuestion(text);
+  const { answer, source, elapsedMs, provider, model, usage, costUsd } = resolved;
+
+  const cd = canReply(memberId || authorId);
+  if (!cd.ok) {
+    await sleep(cd.waitMs);
+  }
+
+  await message.reply(answer);
+  markReplied(memberId || authorId);
+  chat.clearState?.().catch(() => {});
+
+  statsService.recordAnswer({
+    leaderId: memberId || authorId,
+    source,
+    elapsedMs,
+    usage,
+    costUsd,
+  });
+  historyService.add({
+    groupName: ctx.groupName,
+    groupId,
+    leaderId: memberId || authorId,
+    question: text,
+    answer,
+    source,
+    elapsedMs,
+    provider,
+    model,
+    tokensIn: usage?.inputTokens ?? 0,
+    tokensOut: usage?.outputTokens ?? 0,
+    costUsd: costUsd ?? 0,
+  });
+  activityService.add({
+    action: ACTIONS.ANSWERED,
+    groupName: ctx.groupName,
+    author: ctx.author,
+    isLeader: true,
+    body: text,
+    reason: `${source} · ${elapsedMs}ms`,
+  });
+
+  logger.success(
+    `✓ respondido em ${elapsedMs}ms via ${source.toUpperCase()}` +
+      (source === 'ai' ? ` (${usage?.totalTokens ?? '?'}tk, $${(costUsd ?? 0).toFixed(6)})` : '') +
+      `: "${truncate(answer, 80)}"`
+  );
 }
 
 /**
@@ -144,116 +255,10 @@ export function createMessageHandler(_client) {
         return;
       }
 
-      // 5) Pausa via dashboard.
-      if (stateService.paused) {
-        track(ACTIONS.IGNORED_PAUSED, ctx);
-        statsService.inc('ignoredByPause');
-        return;
-      }
-
-      statsService.inc('considered');
-
-      // 6) Cooldown por líder ANTES de tocar em mídia.
-      //    Importante: se OCR/Whisper forem ativados, isso evita pagar
-      //    extração de texto em mensagens que iriam ser bloqueadas.
-      const cd = canReply(memberId || authorId);
-      if (!cd.ok) {
-        track(ACTIONS.IGNORED_COOLDOWN, ctx, `aguarda ${cd.waitMs}ms`);
-        statsService.inc('ignoredByCooldown');
-        return;
-      }
-
-      // 7) Extrai texto (com hook para OCR / áudio).
-      const text = await extractText(message);
-      ctx.body = text;
-
-      if (!text) {
-        track(ACTIONS.IGNORED_NO_TEXT, ctx, 'sem texto/OCR/transcrição');
-        return;
-      }
-
-      chatBuffer.amend(groupId, msgId, text);
-      if (!chatBuffer.window(groupId).some((e) => e.id === msgId)) {
-        chatBuffer.append(groupId, {
-          id: msgId,
-          author: ctx.author,
-          isLeader: true,
-          text,
-        });
-      }
-
-      // 8) Filtros heurísticos (parece pergunta? tamanho ok?)
-      const validation = validateQuestion(text);
-      if (!validation.ok) {
-        track(ACTIONS.IGNORED_FILTER, ctx, validation.reason);
-        statsService.inc('ignoredByFilter');
-        return;
-      }
-
-      // 9) IA classifica a última mensagem usando o buffer de contexto.
-      const classification = await classifyGincanaQuestion({
-        groupId,
-        text,
-        author: ctx.author,
-        messageId: msgId,
-        isLeader: true,
-      });
-      if (!classification.isGincana) {
-        const reason = classification.fallback
-          ? 'classificação indisponível'
-          : `não é pergunta da gincana (${classification.label})`;
-        track(ACTIONS.IGNORED_CLASSIFY, ctx, reason);
-        statsService.inc('ignoredByClassify');
-        return;
-      }
-
-      // 10) Tudo certo — vai responder.
-      logger.info(`❓ ${ctx.groupName} · líder ${ctx.author}: ${truncate(text, 80)}`);
-
-      chat.sendSeen?.().catch(() => {});
-      chat.sendStateTyping?.().catch(() => {});
-
-      const resolved = await answerQuestion(text);
-      const { answer, source, elapsedMs, provider, model, usage, costUsd } = resolved;
-
-      await message.reply(answer);
-      markReplied(memberId || authorId);
-      chat.clearState?.().catch(() => {});
-
-      statsService.recordAnswer({
-        leaderId: memberId || authorId,
-        source,
-        elapsedMs,
-        usage,
-        costUsd,
-      });
-      historyService.add({
-        groupName: ctx.groupName,
-        groupId,
-        leaderId: memberId || authorId,
-        question: text,
-        answer,
-        source,
-        elapsedMs,
-        provider,
-        model,
-        tokensIn: usage?.inputTokens ?? 0,
-        tokensOut: usage?.outputTokens ?? 0,
-        costUsd: costUsd ?? 0,
-      });
-      activityService.add({
-        action: ACTIONS.ANSWERED,
-        groupName: ctx.groupName,
-        author: ctx.author,
-        isLeader: true,
-        body: text,
-        reason: `${source} · ${elapsedMs}ms`,
-      });
-
-      logger.success(
-        `✓ respondido em ${elapsedMs}ms via ${source.toUpperCase()}` +
-          (source === 'ai' ? ` (${usage?.totalTokens ?? '?'}tk, $${(costUsd ?? 0).toFixed(6)})` : '') +
-          `: "${truncate(answer, 80)}"`
+      // 5–10) Fila por líder: perguntas em sequência aguardam em vez de
+      // serem descartadas pelo cooldown. Cooldown só antes do reply.
+      await runExclusive(memberId || authorId, () =>
+        processLeaderMessage(message, chat, ctx, groupId, memberId, authorId, msgId)
       );
     } catch (err) {
       logger.error('[pipeline] erro inesperado:', err);

@@ -6,6 +6,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'ignored:not-leader': 'NÃO-LÍDER',
   'ignored:paused': 'PAUSADO',
   'ignored:filter': 'FILTRO',
+  'ignored:classify': 'CLASSIFICAÇÃO',
   'ignored:cooldown': 'COOLDOWN',
   'ignored:no-text': 'SEM TEXTO',
   error: 'ERRO',

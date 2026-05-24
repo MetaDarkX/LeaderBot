@@ -18,6 +18,8 @@ export const PRICING = Object.freeze({
     'gemini-2.0-flash':      { in: 0.10,   out: 0.40 },
     'gemini-2.0-flash-lite': { in: 0.075,  out: 0.30 },
     'gemini-2.5-flash':      { in: 0.30,   out: 2.50 },
+    'gemini-2.5-flash-lite': { in: 0.10,   out: 0.40 },
+    'gemini-3.1-flash-lite': { in: 0.25,   out: 1.50 },
   }),
 });
 

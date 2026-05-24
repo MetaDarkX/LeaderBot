@@ -11,7 +11,7 @@ export const CLASSIFY_SYSTEM_PROMPT =
   'Use o contexto das mensagens anteriores para distinguir pergunta de quiz de conversa do grupo. ' +
   'Responda SOMENTE SIM ou NAO. ' +
   'NAO se for: confirmação (certo?, confirmado?), organização do grupo (presença, quantas perguntas, horário), conversa casual, cumprimentos, opinião, mensagem pessoal ou comentário sem pergunta objetiva. ' +
-  'SIM se for: pergunta de quiz com resposta objetiva (qual/quem/onde, alternativas A B C, pergunta relâmpago, citação com pergunta).';
+  'SIM se for: pergunta de quiz com resposta objetiva — com ou sem alternativas A B C (discursiva/aberta também conta: qual/quem/onde, cite, complete, verdadeiro/falso, cálculo, bíblia).';
 
 const MSG_TRUNCATE = 600;
 
@@ -48,7 +48,12 @@ export function buildClassifyUserPrompt(entries, current) {
 /** @param {string} raw */
 export function parseClassifyAnswer(raw) {
   const t = (raw || '').trim().toUpperCase();
-  if (t.startsWith('SIM')) return { isGincana: true, label: t };
-  if (t.startsWith('NAO') || t.startsWith('NÃO')) return { isGincana: false, label: t };
-  return { isGincana: false, label: t || 'resposta inválida' };
+  if (!t) return { isGincana: false, label: 'resposta vazia' };
+  if (/^SIM\b/.test(t) || t === 'S' || t === 'YES') return { isGincana: true, label: t };
+  if (/^NAO\b/.test(t) || /^NÃO\b/.test(t) || t === 'N' || t === 'NO') {
+    return { isGincana: false, label: t };
+  }
+  if (/\bNAO\b/.test(t) || /\bNÃO\b/.test(t)) return { isGincana: false, label: t };
+  if (/\bSIM\b/.test(t)) return { isGincana: true, label: t };
+  return { isGincana: false, label: t };
 }

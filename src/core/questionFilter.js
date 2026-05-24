@@ -41,18 +41,27 @@ const CONFIRMATION_REGEX = [
   /\b(est[aá]\s+)?(certo|ok|beleza)\s*(ent[aã]o|n[eé])?\s*\?\s*$/i,
 ];
 
-// Sinais de pergunta objetiva (bíblica, geral, múltipla escolha).
+// Sinais de pergunta objetiva (bíblica, geral, múltipla escolha, aberta).
 const KNOWLEDGE_REGEX = [
   /\b(qual|quem|onde|quando|quanto|quantos|quantas|o\s+que)\b/i,
-  /\bque\s+(evento|nome|pa[ií]s|cidade|livro|profeta|animal|planta|rio|monte|significa|ano)\b/i,
-  /\b(cite|identifique|assinale|marque|escolha|indique|nomeie)\b/i,
+  /\b(em\s+que|em\s+qual)\b/i,
+  /\b(por\s+que|por\s+qu[eê])\b/i,
+  /\bque\s+(evento|nome|pa[ií]s|cidade|livro|profeta|animal|planta|rio|monte|significa|ano|dia|m[eê]s)\b/i,
+  /\b(cite|identifique|assinale|marque|escolha|indique|nomeie|diga|defina|explique|descreva|complete|liste)\b/i,
   /\b(alternativas?|pergunta\s+rel[aâ]mpago)\b/i,
   /\b[A-F]\)\s/m,
   /\b(segundo|conforme|de\s+acordo\s+com)\b/i,
-  /\b(livro|cap[ií]tulo|vers[ií]culo|b[ií]blia|apocalipse|daniel|mateus|ezequiel|genesis|ex[oô]do|lev[ií]tico)\b/i,
+  /\b(livro|cap[ií]tulo|vers[ií]culo|b[ií]blia|apocalipse|daniel|mateus|ezequiel|genesis|ex[oô]do|lev[ií]tico|salmos|prov[eé]rbios|israel|jerusal[eé]m|egito|sinai|arca|dil[uú]vio|mandamentos?)\b/i,
   /\bcomo\s+(se\s+chama|é\s+que|foi|funciona|aconteceu|surge|surgiu|chama)\b/i,
   /\b(verdadeiro|falso)\b/i,
+  /\b(nasceu|morreu|construiu|recebeu|escreveu|fundou|batizou|profetizou)\b/i,
   /\d+\s*[\+\-\*x×÷]\s*\d+/,
+];
+
+const STRONG_QUIZ_REGEX = [
+  /\b[A-F]\)\s/m,
+  /\b(alternativas?|pergunta\s+rel[aâ]mpago)\b/i,
+  /\b(qual|quem|onde|quando|quantos?|quantas?|o\s+que|cite|assinale|marque|escolha)\b/i,
 ];
 
 function isConversational(text) {
@@ -67,15 +76,30 @@ function isKnowledgeQuestion(text) {
   return KNOWLEDGE_REGEX.some((re) => re.test(text));
 }
 
+/** Pergunta com sinais claros de quiz — pode pular a classificação com IA. */
+export function isStrongGincanaQuestion(text) {
+  if (!text || typeof text !== 'string') return false;
+  const t = text.trim();
+  if (t.length < 8) return false;
+  if (isConversational(t) || isConfirmation(t)) return false;
+  if (!isKnowledgeQuestion(t)) return false;
+  if (STRONG_QUIZ_REGEX.some((re) => re.test(t))) return true;
+  const knowledgeHits = KNOWLEDGE_REGEX.filter((re) => re.test(t)).length;
+  return knowledgeHits >= 2;
+}
+
+function hasQuestionMark(text) {
+  return text.includes('?');
+}
+
 export function looksLikeQuestion(text) {
   if (!text || typeof text !== 'string') return false;
   const t = text.trim();
   if (t.length < 4) return false;
   if (NOISE_REGEX.test(t)) return false;
-  // Mínimo de 2 "palavras" para evitar mandar tokens isolados pra IA.
   const tokens = t.split(/\s+/).filter(Boolean);
   if (tokens.length < 2) return false;
-  if (!t.includes('?')) return false;
+  if (!hasQuestionMark(t) && !isStrongGincanaQuestion(t)) return false;
   if (isConversational(t)) return false;
   if (isConfirmation(t)) return false;
   if (!isKnowledgeQuestion(t)) return false;
@@ -94,7 +118,7 @@ export function validateQuestion(text, { maxLength = 300 } = {}) {
     return { ok: false, reason: `mensagem maior que ${maxLength} caracteres` };
   }
   const t = text.trim();
-  if (!t.includes('?')) {
+  if (!hasQuestionMark(t) && !isStrongGincanaQuestion(t)) {
     return { ok: false, reason: 'sem ponto de interrogação' };
   }
   if (isConversational(t)) {

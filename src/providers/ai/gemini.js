@@ -40,6 +40,22 @@ function defaultModel() {
   return _defaultModel;
 }
 
+/** Modelos 2.5 Flash (não Lite) gastam tokens em "thinking" por padrão — desligamos. */
+function needsThinkingOff(modelName) {
+  return /gemini-2\.5-flash(?!-lite)/i.test(modelName || '');
+}
+
+function buildGenerationConfig(opts) {
+  const generationConfig = {
+    temperature: opts.temperature ?? TEMPERATURE,
+    maxOutputTokens: opts.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+  };
+  if (needsThinkingOff(config.ai.gemini.model)) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+  return generationConfig;
+}
+
 /**
  * Faz uma pergunta para o Google Gemini.
  * @param {string} question
@@ -51,10 +67,7 @@ export async function askGemini(question, opts = {}) {
   const modelName = config.ai.gemini.model;
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: question }] }],
-    generationConfig: {
-      temperature: opts.temperature ?? TEMPERATURE,
-      maxOutputTokens: opts.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
-    },
+    generationConfig: buildGenerationConfig(opts),
   });
   const response = result?.response;
   const answer = extractGeminiText(response);
@@ -62,7 +75,7 @@ export async function askGemini(question, opts = {}) {
   if (finishReason === 'MAX_TOKENS') {
     logger.warn(
       `[gemini] resposta pode ter sido cortada (MAX_TOKENS, ${answer.length} chars). ` +
-        'Use gemini-1.5-flash-8b ou gemini-2.0-flash se persistir.'
+        'Prefira gemini-2.5-flash-lite ou aumente maxOutputTokens; em 2.5-flash use thinkingBudget=0.'
     );
   }
   const um = response?.usageMetadata ?? {};
