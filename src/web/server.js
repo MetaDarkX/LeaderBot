@@ -13,6 +13,7 @@ import { Server as IOServer } from 'socket.io';
 import { config } from '#config';
 import { logger } from '#platform/logger';
 import { createApiAuthMiddleware, createSocketAuthMiddleware } from '#web/auth';
+import { attachMessaging } from '#modules/messaging';
 import { registerApiRoutes } from '#web/routes/index';
 import { setupSocket } from '#web/socket';
 
@@ -32,15 +33,15 @@ export function startWebServer({ client } = {}) {
   app.use(createApiAuthMiddleware(token));
   app.use(express.static(path.join(__dirname, 'public')));
 
-  registerApiRoutes(app, { client });
-
   const server = http.createServer(app);
   const io = new IOServer(server, { cors: { origin: '*' } });
 
   const socketAuth = createSocketAuthMiddleware(token);
   if (socketAuth) io.use(socketAuth);
 
+  registerApiRoutes(app, { client, io });
   setupSocket(io);
+  attachMessaging({ client, io });
 
   return new Promise((resolve) => {
     server.listen(config.web.port, config.web.host, () => {

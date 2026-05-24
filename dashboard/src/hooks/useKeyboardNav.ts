@@ -36,6 +36,7 @@ export function useKeyboardNav(onPause?: () => void) {
 
       const map: Record<string, string> = {
         h: '/',
+        m: '/mensagens',
         g: '/grupos',
         a: '/atividade',
         q: '/historico',

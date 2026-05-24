@@ -24,13 +24,21 @@ export const NAV_ITEMS: NavItem[] = [
     tabBar: true,
   },
   {
+    id: 'mensagens',
+    to: '/mensagens',
+    label: 'Mensagens',
+    shortLabel: 'Chat',
+    description: 'Conversas do WhatsApp',
+    shortcut: 'G M',
+    tabBar: true,
+  },
+  {
     id: 'grupos',
     to: '/grupos',
     label: 'Grupos & Líderes',
     shortLabel: 'Grupos',
     description: 'Quem o bot responde',
     shortcut: 'G G',
-    tabBar: true,
   },
   {
     id: 'atividade',
@@ -49,7 +57,6 @@ export const NAV_ITEMS: NavItem[] = [
     shortLabel: 'Histórico',
     description: 'Perguntas respondidas',
     shortcut: 'G Q',
-    tabBar: true,
   },
   {
     id: 'config',
@@ -71,7 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const TAB_BAR_ITEMS = NAV_ITEMS.filter((n) => n.tabBar);
 
-export const MORE_MENU_IDS: RouteId[] = ['config', 'logs'];
+export const MORE_MENU_IDS: RouteId[] = ['historico', 'config', 'logs'];
 
 export function navItemByPath(pathname: string): NavItem | undefined {
   if (pathname === '/' || pathname === '') return NAV_ITEMS[0];

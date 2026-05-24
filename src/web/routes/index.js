@@ -12,10 +12,11 @@ import cooldownRoutes from '#web/routes/cooldownRoutes';
 import statsRoutes from '#web/routes/statsRoutes';
 import aiRoutes from '#web/routes/aiRoutes';
 import { createGroupsRoutes } from '#web/routes/groupsRoutes';
+import { createChatRoutes } from '#web/routes/chatRoutes';
 
 /**
  * @param {import('express').Express} app
- * @param {{ client?: import('whatsapp-web.js').Client }} deps
+ * @param {{ client?: import('whatsapp-web.js').Client, io?: import('socket.io').Server }} deps
  */
 export function registerApiRoutes(app, deps = {}) {
   const api = [
@@ -28,6 +29,7 @@ export function registerApiRoutes(app, deps = {}) {
     statsRoutes,
     aiRoutes,
     createGroupsRoutes(deps),
+    createChatRoutes(deps),
   ];
 
   for (const router of api) {

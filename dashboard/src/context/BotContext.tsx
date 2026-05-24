@@ -8,9 +8,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { api } from '@/lib/api';
-import { AUTH_TOKEN } from '@/lib/token';
+import { getSocket } from '@/lib/socket';
 import type {
   ActivityItem,
   BotState,
@@ -100,9 +100,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [state?.paused, toast]);
 
   useEffect(() => {
-    const socket: Socket = io({
-      auth: { token: AUTH_TOKEN },
-    });
+    const socket: Socket = getSocket();
 
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));

@@ -99,8 +99,38 @@ export interface HelloPayload {
   cache?: unknown;
 }
 
+export interface ChatSummary {
+  id: string;
+  name: string;
+  isGroup: boolean;
+  timestamp: number;
+  unreadCount: number;
+  lastMessage?: {
+    body: string;
+    fromMe: boolean;
+    timestamp: number;
+  } | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  body: string;
+  type: string;
+  fromMe: boolean;
+  author: string | null;
+  timestamp: number;
+  hasMedia: boolean;
+}
+
+export interface ChatMessageEvent {
+  message: ChatMessage;
+  chat: ChatSummary;
+}
+
 export type RouteId =
   | 'painel'
+  | 'mensagens'
   | 'grupos'
   | 'atividade'
   | 'historico'

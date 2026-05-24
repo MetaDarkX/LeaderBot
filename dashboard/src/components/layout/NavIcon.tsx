@@ -13,6 +13,12 @@ export function NavIcon({ id, className }: { id: RouteId; className?: string }) 
           <rect x="3" y="16" width="7" height="5" />
         </svg>
       );
+    case 'mensagens':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     case 'grupos':
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

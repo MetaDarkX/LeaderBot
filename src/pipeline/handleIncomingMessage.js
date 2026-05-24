@@ -110,11 +110,13 @@ async function processLeaderMessage(message, chat, ctx, groupId, memberId, autho
     messageId: msgId,
     isLeader: true,
   });
-  if (!classification.isGincana) {
-    const reason = classification.fallback
-      ? 'classificação indisponível'
-      : `não é pergunta da gincana (${classification.label})`;
-    track(ACTIONS.IGNORED_CLASSIFY, ctx, reason);
+  // fallback da IA = tratar como pergunta (classifyMessage já define isGincana: true)
+  if (!classification.isGincana && !classification.fallback) {
+    track(
+      ACTIONS.IGNORED_CLASSIFY,
+      ctx,
+      `não é pergunta da gincana (${classification.label})`,
+    );
     statsService.inc('ignoredByClassify');
     return;
   }

@@ -6,6 +6,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { Skeleton } from '@/components/ui/Skeleton';
 
+const MessagesPage = lazy(() =>
+  import('@/pages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
+);
 const GroupsPage = lazy(() =>
   import('@/pages/GroupsPage').then((m) => ({ default: m.GroupsPage })),
 );
@@ -40,6 +43,14 @@ export default function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
+              <Route
+                path="mensagens"
+                element={
+                  <Suspense fallback={<PageFallback />}>
+                    <MessagesPage />
+                  </Suspense>
+                }
+              />
               <Route
                 path="grupos"
                 element={

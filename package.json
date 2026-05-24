@@ -30,6 +30,9 @@
     "#modules/activity": "./src/modules/activity/index.js",
     "#modules/groups": "./src/modules/groups/index.js",
     "#modules/chatBuffer": "./src/modules/chatBuffer/index.js",
+    "#modules/leaderQueue": "./src/modules/leaderQueue/index.js",
+    "#modules/messaging": "./src/modules/messaging/index.js",
+    "#modules/messaging/*": "./src/modules/messaging/*.js",
     "#pipeline/*": "./src/pipeline/*.js",
     "#web/*": "./src/web/*.js",
     "#web/routes/*": "./src/web/routes/*.js"

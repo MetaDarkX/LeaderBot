@@ -254,9 +254,10 @@ export function AppShell() {
         </main>
 
         <footer className="hidden border-t border-border-soft px-6 py-2 text-center text-[10px] text-muted-dim lg:block">
-          Atalhos: <kbd className="font-mono">G</kbd> depois{' '}
-          <kbd className="font-mono">H</kbd> painel · <kbd className="font-mono">G</kbd> grupos ·{' '}
-          <kbd className="font-mono">A</kbd> atividade · <kbd className="font-mono">Q</kbd> histórico ·{' '}
+          Atalhos:           <kbd className="font-mono">G</kbd> depois{' '}
+          <kbd className="font-mono">H</kbd> painel · <kbd className="font-mono">M</kbd> mensagens ·{' '}
+          <kbd className="font-mono">G</kbd> grupos · <kbd className="font-mono">A</kbd> atividade ·{' '}
+          <kbd className="font-mono">Q</kbd> histórico ·{' '}
           <kbd className="font-mono">C</kbd> config · <kbd className="font-mono">L</kbd> logs ·{' '}
           <kbd className="font-mono">P</kbd> pausar
         </footer>
