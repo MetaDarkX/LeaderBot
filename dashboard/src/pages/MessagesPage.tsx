@@ -8,12 +8,7 @@ import {
 } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { api } from '@/lib/api';
-import {
-  appendMessage,
-  chatPreview,
-  fmtChatTime,
-  mergeChatList,
-} from '@/lib/chat';
+import { appendMessage, mergeChatList } from '@/lib/chat';
 import { cn } from '@/lib/cn';
 import { getSocket } from '@/lib/socket';
 import { useBot } from '@/context/BotContext';
