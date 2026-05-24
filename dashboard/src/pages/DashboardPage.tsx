@@ -57,6 +57,24 @@ export function DashboardPage() {
 
       <ConnectionHero />
 
+      <Link
+        to="/mensagens"
+        className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-accent/25 bg-accent-soft/40 p-4 transition-colors hover:border-accent/40 hover:bg-accent-soft/60 sm:mt-6"
+      >
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="font-semibold text-ink">Conversas do WhatsApp</span>
+          <span className="mt-0.5 block text-sm text-muted">
+            Ver chats, histórico e enviar mensagens sem sair do painel
+          </span>
+        </span>
+        <span className="shrink-0 text-sm font-medium text-accent">Abrir →</span>
+      </Link>
+
       <section className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard label="Recebidas" value={recv} foot="total desde o boot" delay={0.02} />
         <KpiCard

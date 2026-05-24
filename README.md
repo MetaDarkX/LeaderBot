@@ -280,6 +280,18 @@ git pull
 docker compose --profile production up -d --build
 ```
 
+O `Dockerfile.production` **compila o dashboard** na imagem (stage `dashboard`).
+Não rode `npm run dashboard:install` **dentro** do container em execução — a pasta
+`dashboard/` não existe em `/app` no runtime, só no contexto de build.
+
+Para testar a UI em desenvolvimento na sua máquina:
+
+```bash
+npm run dashboard:install
+npm run dashboard:build    # opcional se usar dashboard:dev
+npm run dashboard:dev      # :5173 com proxy para o bot
+```
+
 ### EasyPanel (evitar QR a cada redeploy)
 
 O WhatsApp salva a sessão em **`.wwebjs_auth/`** (dentro do container:

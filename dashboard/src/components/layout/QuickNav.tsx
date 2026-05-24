@@ -7,6 +7,12 @@ import { cn } from '@/lib/cn';
 function QuickIcon({ id }: { id: RouteId }) {
   const cls = 'size-5 text-accent';
   switch (id) {
+    case 'mensagens':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     case 'grupos':
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

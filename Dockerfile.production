@@ -3,33 +3,33 @@
 #  Dockerfile.production
 #  Imagem otimizada para rodar o wppbot em uma VPS.
 #
-#  Build:
+#  Build (inclui dashboard React → src/web/public):
 #    docker build -f Dockerfile.production -t wppbot:prod .
-#
-#  Run (standalone):
-#    docker run -d --name wppbot \
-#      --env-file .env \
-#      -p 3000:3000 \
-#      -v wppbot-auth:/app/.wwebjs_auth \
-#      -v wppbot-cache:/app/.wwebjs_cache \
-#      -v wppbot-logs:/app/logs \
-#      wppbot:prod
 #
 #  Run (com docker compose + Postgres):
 #    docker compose --profile production up -d --build
 # ============================================================
 
-# Dashboard React: usamos os artefatos já buildados em src/web/public/
-# (commitados no repo). Rode `npm run dashboard:build` antes do deploy.
-# Build dentro do Docker costuma falhar no EasyPanel (memória / Node+Vite).
+# ─── Stage: dashboard (Vite → src/web/public) ─────────────────
+FROM node:20-bookworm-slim AS dashboard
+
+WORKDIR /app
+
+COPY dashboard/package.json dashboard/package-lock.json ./dashboard/
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefix dashboard --no-audit --no-fund
+
+COPY dashboard ./dashboard/
+
+RUN npm run build --prefix dashboard
 
 
-# ─── Stage 1: dependências de produção ────────────────────────
+# ─── Stage: dependências de produção do bot ────────────────────
 FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Evita que o puppeteer baixe o próprio Chromium — vamos usar o do sistema.
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
@@ -39,12 +39,9 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --no-audit --no-fund
 
 
-# ─── Stage 2: runtime ─────────────────────────────────────────
+# ─── Stage: runtime ───────────────────────────────────────────
 FROM node:20-bookworm-slim AS runtime
 
-# Instala o Chromium e libs nativas que o whatsapp-web.js/Puppeteer exigem.
-# `tini` cuida do PID 1 para sinais (graceful shutdown). `dumb-init` seria
-# alternativa equivalente.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         chromium \
@@ -82,12 +79,11 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# Copia node_modules da stage anterior e o código da aplicação.
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY src ./src
+COPY --from=dashboard /app/src/web/public ./src/web/public
 COPY ecosystem.config.cjs ./
-COPY src/web/public ./src/web/public
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
@@ -96,8 +92,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
 
 EXPOSE 3000
 
-# Healthcheck simples bate no /api/state. Se a dashboard estiver desabilitada
-# (WEB_ENABLED=false), troque por algo equivalente (ou remova).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD wget -q --spider --timeout=3 "http://127.0.0.1:${WEB_PORT}/api/state" || exit 1
 
