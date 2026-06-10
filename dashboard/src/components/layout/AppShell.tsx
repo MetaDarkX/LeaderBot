@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { fmtUptime } from '@/lib/format';
 import { statusLabel, STATUS_META } from '@/lib/status';
-import { NAV_ITEMS, navItemByPath } from '@/lib/nav';
+import { NAV_ITEMS, navItemByPath, navIndexByPath } from '@/lib/nav';
 import { useBot } from '@/context/BotContext';
 import { useKeyboardNav, keyboardHintForNav } from '@/hooks/useKeyboardNav';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
@@ -12,6 +12,23 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { MobileMoreSheet } from '@/components/layout/MobileMoreSheet';
 import { NavIcon } from '@/components/layout/NavIcon';
 import { Button } from '@/components/ui/Button';
+
+// Slide direcional: navegar "para frente" na ordem da nav desliza da
+// direita; "para trás" desliza da esquerda — como apps nativos.
+const pageVariants: Variants = {
+  initial: (dir: number) => ({ opacity: 0, x: 28 * dir, y: dir === 0 ? 8 : 0 }),
+  animate: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+  },
+  exit: (dir: number) => ({
+    opacity: 0,
+    x: -20 * dir,
+    transition: { duration: 0.14, ease: 'easeIn' },
+  }),
+};
 
 function StatusPill({ compact }: { compact?: boolean }) {
   const { state } = useBot();
@@ -155,6 +172,11 @@ export function AppShell() {
   const [moreOpen, setMoreOpen] = useState(false);
   const current = navItemByPath(location.pathname);
 
+  // Direção do slide: compara o índice da rota atual com o da anterior.
+  const navIndex = navIndexByPath(location.pathname);
+  const prevIndexRef = useRef(navIndex);
+  const direction = navIndex === prevIndexRef.current ? 0 : navIndex > prevIndexRef.current ? 1 : -1;
+
   useKeyboardNav(() => void togglePause().catch(() => {}));
 
   const showBanner =
@@ -162,7 +184,13 @@ export function AppShell() {
     (state?.status === 'disconnected' && state.lastError);
 
   useEffect(() => {
+    prevIndexRef.current = navIndex;
+  }, [navIndex]);
+
+  useEffect(() => {
     setMoreOpen(false);
+    // Cada página começa do topo (o HashRouter não restaura sozinho).
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
 
   return (
@@ -173,15 +201,25 @@ export function AppShell() {
         {/* Cabeçalho mobile */}
         <header className="mobile-header glass-panel sticky top-0 z-20 border-b border-border-soft lg:hidden">
           <div className="flex items-center gap-2 px-3 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold tracking-tight text-ink">
-                {current?.shortLabel ?? 'wppbot'}
-              </p>
-              {current && current.id !== 'painel' ? (
-                <p className="truncate text-[11px] text-muted">{current.description}</p>
-              ) : (
-                <p className="text-[11px] text-muted">Bot de gincana</p>
-              )}
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={current?.id ?? 'wppbot'}
+                  initial={{ opacity: 0, y: 7 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -7 }}
+                  transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <p className="truncate text-base font-semibold tracking-tight text-ink">
+                    {current?.shortLabel ?? 'wppbot'}
+                  </p>
+                  {current && current.id !== 'painel' ? (
+                    <p className="truncate text-[11px] text-muted">{current.description}</p>
+                  ) : (
+                    <p className="text-[11px] text-muted">Bot de gincana</p>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
             <StatusPill compact />
             <button
@@ -240,13 +278,14 @@ export function AppShell() {
             ) : null}
           </AnimatePresence>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" custom={direction} initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              custom={direction}
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
               <Outlet />
             </motion.div>

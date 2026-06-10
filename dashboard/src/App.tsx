@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { BotProvider } from '@/context/BotContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import { AppShell } from '@/components/layout/AppShell';
@@ -37,8 +38,9 @@ function PageFallback() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <BotProvider>
+    <MotionConfig reducedMotion="user">
+      <ToastProvider>
+        <BotProvider>
         <HashRouter>
           <Routes>
             <Route element={<AppShell />}>
@@ -95,7 +97,8 @@ export default function App() {
             </Route>
           </Routes>
         </HashRouter>
-      </BotProvider>
-    </ToastProvider>
+        </BotProvider>
+      </ToastProvider>
+    </MotionConfig>
   );
 }

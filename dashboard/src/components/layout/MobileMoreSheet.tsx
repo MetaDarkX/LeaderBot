@@ -62,8 +62,15 @@ export function MobileMoreSheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={(_, info) => {
+              // Fecha se arrastou o suficiente OU soltou com velocidade.
+              if (info.offset.y > 90 || info.velocity.y > 500) onClose();
+            }}
           >
-            <div className="flex justify-center py-2">
+            <div className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing">
               <span className="h-1 w-10 rounded-full bg-border-strong" aria-hidden />
             </div>
             <div className="px-4 pb-2">

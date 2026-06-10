@@ -91,6 +91,15 @@ export function isMoreMenuRoute(pathname: string): boolean {
   return item ? MORE_MENU_IDS.includes(item.id) : false;
 }
 
+/**
+ * Índice da rota na ordem da navegação — usado para decidir a direção
+ * do slide na transição de páginas (sensação de app nativo).
+ */
+export function navIndexByPath(pathname: string): number {
+  const item = navItemByPath(pathname);
+  return item ? NAV_ITEMS.indexOf(item) : 0;
+}
+
 export const QUICK_LINKS = NAV_ITEMS.filter((n) => n.id !== 'painel').map((n) => ({
   ...n,
   icon: n.id,

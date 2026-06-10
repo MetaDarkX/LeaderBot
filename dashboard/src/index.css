@@ -65,6 +65,7 @@
       radial-gradient(700px 380px at 50% 110%, rgb(34 197 94 / 0.05), transparent 55%),
       var(--color-surface-0);
     overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   ::selection {
@@ -107,6 +108,17 @@
 
   .bottom-nav {
     padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    /* Toques rápidos não devem selecionar texto nem mostrar callout */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    /* Sombra sutil separando do conteúdo ao rolar */
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.25);
+  }
+
+  .mobile-header {
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .main-content {

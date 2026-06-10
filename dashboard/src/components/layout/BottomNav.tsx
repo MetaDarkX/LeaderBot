@@ -5,6 +5,19 @@ import { TAB_BAR_ITEMS, isMoreMenuRoute, NAV_ITEMS } from '@/lib/nav';
 import { NavIcon } from '@/components/layout/NavIcon';
 import { useBot } from '@/context/BotContext';
 
+const MotionNavLink = motion.create(NavLink);
+
+/** Vibração curtinha ao trocar de aba (Android; iOS ignora silenciosamente). */
+function haptic() {
+  try {
+    navigator.vibrate?.(8);
+  } catch {
+    /* noop */
+  }
+}
+
+const tapSpring = { type: 'spring', stiffness: 600, damping: 32 } as const;
+
 export function BottomNav({ onOpenMore }: { onOpenMore: () => void }) {
   const { groups } = useBot();
   const { pathname } = useLocation();
@@ -18,9 +31,12 @@ export function BottomNav({ onOpenMore }: { onOpenMore: () => void }) {
       <ul className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
         {TAB_BAR_ITEMS.map((item) => (
           <li key={item.id} className="flex flex-1 justify-center">
-            <NavLink
+            <MotionNavLink
               to={item.to}
               end={item.to === '/'}
+              onClick={haptic}
+              whileTap={{ scale: 0.88 }}
+              transition={tapSpring}
               className={({ isActive }) =>
                 cn(
                   'touch-target relative flex min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] px-1 py-1.5 text-[10px] font-medium transition-colors',
@@ -54,13 +70,18 @@ export function BottomNav({ onOpenMore }: { onOpenMore: () => void }) {
                   <span className="relative max-w-[4.5rem] truncate">{item.shortLabel}</span>
                 </>
               )}
-            </NavLink>
+            </MotionNavLink>
           </li>
         ))}
         <li className="flex flex-1 justify-center">
-          <button
+          <motion.button
             type="button"
-            onClick={onOpenMore}
+            onClick={() => {
+              haptic();
+              onOpenMore();
+            }}
+            whileTap={{ scale: 0.88 }}
+            transition={tapSpring}
             aria-expanded={moreActive}
             aria-haspopup="dialog"
             className={cn(
@@ -87,7 +108,7 @@ export function BottomNav({ onOpenMore }: { onOpenMore: () => void }) {
               <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
             </svg>
             <span className="relative">Mais</span>
-          </button>
+          </motion.button>
         </li>
       </ul>
       {/* rotas do menu “Mais” para leitores de tela */}
