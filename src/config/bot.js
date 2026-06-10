@@ -11,4 +11,7 @@ export const botConfig = Object.freeze({
   cacheTtlSeconds: env('CACHE_TTL_SECONDS', { defaultValue: 604800, parse: toInt }),
   classifyWithAi: env('CLASSIFY_WITH_AI', { defaultValue: true, parse: toBool }),
   chatBufferSize: env('CHAT_BUFFER_SIZE', { defaultValue: 10, parse: toInt }),
+  humanize: env('HUMANIZE', { defaultValue: true, parse: toBool }),
+  humanMinDelayMs: env('HUMAN_MIN_DELAY_MS', { defaultValue: 1200, parse: toInt }),
+  humanMaxDelayMs: env('HUMAN_MAX_DELAY_MS', { defaultValue: 7000, parse: toInt }),
 });

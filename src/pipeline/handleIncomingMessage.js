@@ -26,17 +26,18 @@ import {
 } from './filters.js';
 import { canReply, markReplied } from '#modules/cooldown';
 import { runExclusive } from '#modules/leaderQueue';
-import { sleep } from '#platform/helpers';
 import { answerQuestion } from './answerQuestion.js';
 import { classifyGincanaQuestion } from './classifyMessage.js';
 import { extractText } from '#providers/whatsapp';
 import * as chatBuffer from '#modules/chatBuffer';
+import { humanizeAnswer, humanDelayPlan, shouldQuote } from '#modules/humanizer';
+import { config } from '#config';
 import { stateService } from '#modules/state';
 import { statsService } from '#modules/stats';
 import { historyService } from '#modules/history';
 import { activityService, ACTIONS } from '#modules/activity';
 import { groupService } from '#modules/groups';
-import { truncate } from '#platform/helpers';
+import { truncate, sleep } from '#platform/helpers';
 import { isReady as dbReady } from '#infra/db';
 import { touchGroup } from '#infra/db/repositories/groupRepo';
 
@@ -123,18 +124,42 @@ async function processLeaderMessage(message, chat, ctx, groupId, memberId, autho
 
   logger.info(`❓ ${ctx.groupName} · líder ${ctx.author}: ${truncate(text, 80)}`);
 
-  chat.sendSeen?.().catch(() => {});
-  chat.sendStateTyping?.().catch(() => {});
-
+  // Resolve a resposta ANTES de dar qualquer sinal no chat.
+  // "Digitando..." instantâneo + resposta em 0ms (cache) é assinatura de bot.
   const resolved = await answerQuestion(text);
-  const { answer, source, elapsedMs, provider, model, usage, costUsd } = resolved;
+  const { source, elapsedMs, provider, model, usage, costUsd } = resolved;
+  let answer = resolved.answer;
 
+  // Cooldown: espera silenciosa que também conta como "pensando".
   const cd = canReply(memberId || authorId);
+  let cooldownWaitMs = 0;
   if (!cd.ok) {
+    cooldownWaitMs = cd.waitMs;
     await sleep(cd.waitMs);
   }
 
-  await message.reply(answer);
+  if (config.bot.humanize) {
+    answer = humanizeAnswer(answer);
+    const plan = humanDelayPlan(text, answer, elapsedMs + cooldownWaitMs);
+
+    // Fase 1: "lendo a pergunta" — sem indicador de digitação.
+    await sleep(plan.preTypeMs);
+    chat.sendSeen?.().catch(() => {});
+
+    // Fase 2: "digitando" — duração proporcional ao tamanho da resposta.
+    chat.sendStateTyping?.().catch(() => {});
+    await sleep(plan.typeMs);
+  } else {
+    chat.sendSeen?.().catch(() => {});
+    chat.sendStateTyping?.().catch(() => {});
+  }
+
+  // Citar TODA mensagem é robótico; pessoas geralmente mandam a resposta solta.
+  if (!config.bot.humanize || shouldQuote()) {
+    await message.reply(answer);
+  } else {
+    await chat.sendMessage(answer);
+  }
   markReplied(memberId || authorId);
   chat.clearState?.().catch(() => {});
 

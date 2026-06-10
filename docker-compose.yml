@@ -17,6 +17,20 @@ services:
     image: postgres:16-alpine
     container_name: wppbot-postgres
     restart: unless-stopped
+    # Workload minúsculo (cache + histórico) — não precisa dos defaults
+    # do Postgres pensados para servidores dedicados.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=30
+      - -c
+      - work_mem=4MB
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-wppbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wppbot}
@@ -49,6 +63,10 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-wppbot}:${POSTGRES_PASSWORD:-wppbot}@postgres:5432/${POSTGRES_DB:-wppbot}"
       CHROME_PATH: /usr/bin/chromium
       WEB_HOST: 0.0.0.0
+      # Teto do heap do processo Node (o Chromium tem o próprio teto via
+      # --js-flags em client.js). Evita que o V8 acumule heap até o limite
+      # do container antes de fazer GC.
+      NODE_OPTIONS: "--max-old-space-size=320"
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:

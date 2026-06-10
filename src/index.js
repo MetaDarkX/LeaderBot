@@ -22,6 +22,7 @@ import {
   createClient,
   cleanupStaleChromiumLocks,
   defaultSessionDir,
+  enableLitePageMode,
 } from '#providers/whatsapp';
 import { startWebServer } from './web/server.js';
 import { migrate, closePool } from '#infra/db';
@@ -89,6 +90,12 @@ client.on('ready', async () => {
   };
   logger.success(`Logado como: ${me.pushname} (${me.number})`);
   stateService.setReady(me);
+
+  // Corta o consumo do Chromium (avatares, sprites, fontes) — depois do
+  // login, para não interferir com a fase de QR/autenticação.
+  if (config.session.chromeLite) {
+    enableLitePageMode(client).catch(() => {});
+  }
 
   // Sincroniza os grupos do WhatsApp com o banco assim que o bot fica pronto.
   groupService.syncAllGroups(client).catch((err) =>

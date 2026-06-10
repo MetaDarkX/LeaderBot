@@ -30,6 +30,6 @@ export const aiConfig = Object.freeze({
   maxRetries: env('AI_MAX_RETRIES', { defaultValue: 2, parse: toInt }),
   timeoutMs: env('AI_TIMEOUT_MS', { defaultValue: 5000, parse: toInt }),
   fallbackAnswer: env('FALLBACK_ANSWER', {
-    defaultValue: 'Não consegui responder agora.',
+    defaultValue: 'essa eu não sei kkk',
   }),
 });

@@ -33,6 +33,7 @@
     "#modules/leaderQueue": "./src/modules/leaderQueue/index.js",
     "#modules/messaging": "./src/modules/messaging/index.js",
     "#modules/messaging/*": "./src/modules/messaging/*.js",
+    "#modules/humanizer": "./src/modules/humanizer/index.js",
     "#pipeline/*": "./src/pipeline/*.js",
     "#web/*": "./src/web/*.js",
     "#web/routes/*": "./src/web/routes/*.js"
