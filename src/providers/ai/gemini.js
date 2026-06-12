@@ -86,3 +86,40 @@ export async function askGemini(question, opts = {}) {
   };
   return { answer, model: modelName, usage };
 }
+
+/**
+ * Pergunta multimodal: envia mídia (imagem/áudio) inline + instrução.
+ * Usado para OCR de prints e transcrição de áudios da gincana.
+ *
+ * @param {string} prompt        Instrução em texto (ex.: "transcreva")
+ * @param {{ mimeType: string, dataBase64: string }} media
+ * @param {{ maxOutputTokens?: number, temperature?: number }} [opts]
+ * @returns {Promise<{answer: string, model: string, usage: object}>}
+ */
+export async function askGeminiMedia(prompt, media, opts = {}) {
+  const genAI = new GoogleGenerativeAI(config.ai.gemini.apiKey);
+  const model = genAI.getGenerativeModel({ model: config.ai.gemini.model });
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType: media.mimeType, data: media.dataBase64 } },
+          { text: prompt },
+        ],
+      },
+    ],
+    generationConfig: buildGenerationConfig(opts),
+  });
+  const response = result?.response;
+  const um = response?.usageMetadata ?? {};
+  return {
+    answer: extractGeminiText(response),
+    model: config.ai.gemini.model,
+    usage: {
+      inputTokens: um.promptTokenCount ?? 0,
+      outputTokens: um.candidatesTokenCount ?? 0,
+      totalTokens: um.totalTokenCount ?? 0,
+    },
+  };
+}

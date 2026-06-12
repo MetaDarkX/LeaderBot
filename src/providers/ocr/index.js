@@ -1,44 +1,49 @@
 // ============================================================
 //  providers/ocr/index.js
-//  Placeholder para extração de texto a partir de imagens.
-//
-//  ▸ Suporte FUTURO. Hoje retorna null.
-//  ▸ Quando quiser ativar, sugestões:
-//      - tesseract.js                (offline, grátis, ótimo p/ texto simples)
-//      - @google-cloud/vision        (Google Vision API)
-//      - openai (gpt-4o vision)      (já está instalado!)
+//  Extração de texto de imagens (prints de pergunta da gincana)
+//  usando o provedor de IA já configurado:
+//   - Gemini: imagem inline no próprio flash (multimodal nativo)
+//   - OpenAI: vision via chat completions
 // ============================================================
 
+import { config } from '#config';
 import { logger } from '#platform/logger';
+import { askAIMedia } from '#providers/ai';
+
+// Acima disso o upload fica caro/lento e dificilmente é uma pergunta.
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+const OCR_PROMPT =
+  'Transcreva TODO o texto visível nesta imagem, em português, preservando ' +
+  'quebras de linha e alternativas (A, B, C…). Responda SOMENTE com o texto ' +
+  'transcrito, sem comentários. Se não houver texto legível, responda VAZIO.';
 
 /**
  * Extrai texto de um buffer de imagem.
- * @param {Buffer} _imageBuffer  Buffer com a imagem (jpg/png)
- * @param {string} [_mimetype]   Ex.: "image/jpeg"
+ * @param {Buffer} imageBuffer  Buffer com a imagem (jpg/png/webp)
+ * @param {string} [mimetype]   Ex.: "image/jpeg"
  * @returns {Promise<string|null>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function extractTextFromImage(_imageBuffer, _mimetype) {
-  logger.debug('[ocr] OCR ainda não implementado — retornando null.');
-  return null;
+export async function extractTextFromImage(imageBuffer, mimetype = 'image/jpeg') {
+  if (!config.bot.ocrEnabled) return null;
+  if (!imageBuffer?.length) return null;
+  if (imageBuffer.length > MAX_IMAGE_BYTES) {
+    logger.warn(`[ocr] imagem muito grande (${Math.round(imageBuffer.length / 1024)}KB), ignorando`);
+    return null;
+  }
 
-  /* ─────────────────────────────────────────────────────────────
-   * EXEMPLO usando OpenAI Vision (descomente e adapte):
-   *
-   * import OpenAI from 'openai';
-   * import { config } from '#config';
-   * const openai = new OpenAI({ apiKey: config.ai.openai.apiKey });
-   * const b64 = _imageBuffer.toString('base64');
-   * const res = await openai.chat.completions.create({
-   *   model: 'gpt-4o-mini',
-   *   messages: [{
-   *     role: 'user',
-   *     content: [
-   *       { type: 'text', text: 'Extraia o texto desta imagem. Responda só com o texto.' },
-   *       { type: 'image_url', image_url: { url: `data:${_mimetype};base64,${b64}` } },
-   *     ],
-   *   }],
-   * });
-   * return res.choices?.[0]?.message?.content ?? null;
-   * ───────────────────────────────────────────────────────────── */
+  const result = await askAIMedia(
+    OCR_PROMPT,
+    { mimeType: mimetype, dataBase64: imageBuffer.toString('base64') },
+    { maxOutputTokens: 1024, label: 'ocr' }
+  );
+
+  const text = result?.answer?.trim();
+  if (!text || /^vazio$/i.test(text)) return null;
+
+  logger.info(
+    `[ocr] ${text.length} chars extraídos via ${result.provider}/${result.model} ` +
+      `($${(result.costUsd ?? 0).toFixed(6)})`
+  );
+  return text;
 }

@@ -16,28 +16,44 @@ import { extractTextFromImage } from '#providers/ocr';
 import { transcribeAudio } from '#providers/audio';
 
 /**
+ * Junta legenda + conteúdo extraído da mídia em um texto só.
+ * A legenda pode ser a pergunta ("Qual a capital...?") ou só um rótulo
+ * ("pergunta 6") — em ambos os casos o conteúdo da mídia complementa.
+ */
+function combine(caption, extracted) {
+  const a = (caption || '').trim();
+  const b = (extracted || '').trim();
+  if (a && b) return `${a}\n${b}`;
+  return a || b;
+}
+
+/**
  * @param {object} message  Mensagem do whatsapp-web.js
  * @returns {Promise<string>} texto (vazio se não conseguir extrair)
  */
 export async function extractText(message) {
-  if (message.body && message.body.trim()) return message.body.trim();
-  if (!message.hasMedia) return '';
+  const caption = (message.body || '').trim();
+
+  // Sem mídia: o texto da mensagem é tudo que existe.
+  if (!message.hasMedia) return caption;
 
   try {
     const media = await message.downloadMedia();
-    if (!media?.data) return '';
+    if (!media?.data) return caption;
 
     const buffer = Buffer.from(media.data, 'base64');
     if (media.mimetype?.startsWith('image/')) {
+      // Mesmo com legenda, analisamos a imagem: a pergunta pode estar
+      // no print e a legenda ser só "pergunta 6" (ou vice-versa).
       const text = await extractTextFromImage(buffer, media.mimetype);
-      return text?.trim() ?? '';
+      return combine(caption, text);
     }
     if (media.mimetype?.startsWith('audio/')) {
       const text = await transcribeAudio(buffer, media.mimetype);
-      return text?.trim() ?? '';
+      return combine(caption, text);
     }
   } catch (err) {
     logger.warn(`[media] falha ao baixar mídia: ${err.message}`);
   }
-  return '';
+  return caption;
 }

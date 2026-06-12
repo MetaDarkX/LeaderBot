@@ -16,8 +16,8 @@ import { logger } from '#platform/logger';
 import { retry } from '#platform/retry';
 import { estimateCost, isKnownModel } from '#core/pricing';
 
-import { askOpenAI } from './openai.js';
-import { askGemini } from './gemini.js';
+import { askOpenAI, askOpenAIMedia } from './openai.js';
+import { askGemini, askGeminiMedia } from './gemini.js';
 import { shouldRetry } from './shouldRetry.js';
 
 // Avisa uma vez por par (provider, model) desconhecido.
@@ -115,5 +115,41 @@ export async function askAI(question, opts = {}) {
       usage: { ...EMPTY_USAGE },
       costUsd: 0,
     };
+  }
+}
+
+/**
+ * Extração multimodal (OCR de imagem / transcrição de áudio) com o
+ * provedor configurado. Diferente do askAI, falha total devolve `null` —
+ * o caller decide o que fazer com mídia ilegível (geralmente ignorar).
+ *
+ * @param {string} prompt
+ * @param {{ mimeType: string, dataBase64: string }} media
+ * @param {{ maxOutputTokens?: number, label?: string }} [opts]
+ * @returns {Promise<{answer: string, provider: string, model: string, usage: object, costUsd: number}|null>}
+ */
+export async function askAIMedia(prompt, media, opts = {}) {
+  const provider = config.ai.provider;
+  const fn = provider === 'gemini' ? askGeminiMedia : askOpenAIMedia;
+  const label = `ai:${opts.label ?? 'media'}`;
+
+  try {
+    const result = await retry(() => fn(prompt, media, opts), {
+      retries: config.ai.maxRetries,
+      baseDelayMs: 300,
+      // Mídia demora mais que texto (upload + processamento).
+      timeoutMs: Math.max(config.ai.timeoutMs, 15_000),
+      label,
+      shouldRetry,
+    });
+    if (!result?.answer) return null;
+    return {
+      ...result,
+      provider,
+      costUsd: estimateCost(provider, result.model, result.usage),
+    };
+  } catch (err) {
+    logger.warn(`[ai] extração de mídia falhou (${provider}): ${err.message}`);
+    return null;
   }
 }

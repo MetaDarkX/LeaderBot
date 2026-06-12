@@ -1,40 +1,51 @@
 // ============================================================
 //  providers/audio/index.js
-//  Placeholder para transcrição de áudios.
-//
-//  ▸ Suporte FUTURO. Hoje retorna null.
-//  ▸ Quando quiser ativar, sugestões:
-//      - openai (Whisper)            (já temos `openai` instalado)
-//      - @google-cloud/speech        (Google Speech-to-Text)
-//      - assemblyai                  (assemblyai.com)
+//  Transcrição de áudios (pergunta ditada por voz) usando o
+//  provedor de IA já configurado:
+//   - Gemini: áudio inline no próprio flash (multimodal nativo)
+//   - OpenAI: Whisper (audio.transcriptions)
 // ============================================================
 
+import { config } from '#config';
 import { logger } from '#platform/logger';
+import { askAIMedia } from '#providers/ai';
+
+// Voice notes do WhatsApp são pequenas; acima disso é música/podcast.
+const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+
+const TRANSCRIBE_PROMPT =
+  'Transcreva este áudio em português. Responda SOMENTE com a transcrição, ' +
+  'sem comentários. Se não houver fala compreensível, responda VAZIO.';
 
 /**
  * Transcreve um áudio para texto.
- * @param {Buffer} _audioBuffer  Buffer com o áudio (ogg/opus geralmente, do WhatsApp)
- * @param {string} [_mimetype]
+ * @param {Buffer} audioBuffer  Buffer com o áudio (ogg/opus geralmente, do WhatsApp)
+ * @param {string} [mimetype]
  * @returns {Promise<string|null>}
  */
-// eslint-disable-next-line no-unused-vars
-export async function transcribeAudio(_audioBuffer, _mimetype) {
-  logger.debug('[audio] Transcrição ainda não implementada — retornando null.');
-  return null;
+export async function transcribeAudio(audioBuffer, mimetype = 'audio/ogg') {
+  if (!config.bot.audioEnabled) return null;
+  if (!audioBuffer?.length) return null;
+  if (audioBuffer.length > MAX_AUDIO_BYTES) {
+    logger.warn(`[audio] áudio muito grande (${Math.round(audioBuffer.length / 1024)}KB), ignorando`);
+    return null;
+  }
 
-  /* ─────────────────────────────────────────────────────────────
-   * EXEMPLO usando Whisper (OpenAI):
-   *
-   * import OpenAI from 'openai';
-   * import { toFile } from 'openai/uploads';
-   * import { config } from '#config';
-   * const openai = new OpenAI({ apiKey: config.ai.openai.apiKey });
-   * const file = await toFile(_audioBuffer, 'audio.ogg', { type: _mimetype || 'audio/ogg' });
-   * const tr = await openai.audio.transcriptions.create({
-   *   file,
-   *   model: 'whisper-1',
-   *   language: 'pt',
-   * });
-   * return tr.text ?? null;
-   * ───────────────────────────────────────────────────────────── */
+  // O WhatsApp manda "audio/ogg; codecs=opus" — a API só quer o mime base.
+  const mimeType = (mimetype || 'audio/ogg').split(';')[0].trim();
+
+  const result = await askAIMedia(
+    TRANSCRIBE_PROMPT,
+    { mimeType, dataBase64: audioBuffer.toString('base64') },
+    { maxOutputTokens: 1024, label: 'transcribe' }
+  );
+
+  const text = result?.answer?.trim();
+  if (!text || /^vazio$/i.test(text)) return null;
+
+  logger.info(
+    `[audio] ${text.length} chars transcritos via ${result.provider}/${result.model} ` +
+      `($${(result.costUsd ?? 0).toFixed(6)})`
+  );
+  return text;
 }
