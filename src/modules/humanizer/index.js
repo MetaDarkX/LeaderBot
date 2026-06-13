@@ -12,6 +12,22 @@ const rand = (min, max) => min + Math.random() * (max - min);
 const chance = (p) => Math.random() < p;
 
 /**
+ * Se a resposta for só uma lista de letras de alternativa (A-J),
+ * padroniza para separá-las APENAS por vírgula ("A, B e C" → "A, B, C").
+ * Alguns líderes só aceitam vírgula como separador.
+ * Retorna null quando a resposta NÃO é uma lista de letras.
+ */
+function asLetterList(text) {
+  const tokens = text
+    .split(/\s*(?:,|\be\b)\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (tokens.length < 2) return null;
+  if (!tokens.every((tok) => /^[A-Ja-j]$/.test(tok))) return null;
+  return tokens.map((tok) => tok.toUpperCase()).join(', ');
+}
+
+/**
  * Deixa o texto da resposta com cara de WhatsApp.
  * Não altera o CONTEÚDO (o dado da resposta), só a forma.
  */
@@ -24,6 +40,10 @@ export function humanizeAnswer(text) {
 
   // Ponto final em mensagem curta é coisa de robô (ou de chefe bravo).
   t = t.replace(/[.!]+$/, '');
+
+  // Lista de alternativas: força só vírgulas e mantém as letras maiúsculas.
+  const list = asLetterList(t);
+  if (list) return list;
 
   // Pessoas digitando rápido raramente capricham no shift.
   // Só em respostas de uma linha, para não bagunçar listas.
