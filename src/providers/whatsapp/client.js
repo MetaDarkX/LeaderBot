@@ -27,12 +27,14 @@ const PUPPETEER_ARGS = Object.freeze([
   '--no-zygote',
   '--disable-gpu',
 
-  // ── Dieta de RAM/CPU ──────────────────────────────────────
+  // ── Dieta de RAM/CPU (SÓ flags seguras p/ a WhatsApp Web) ──
   // O WhatsApp Web é um SPA pesado; headless não precisa de nada visual.
+  // ⚠️ NÃO limitar o heap do renderer (--js-flags=--max-old-space-size)
+  //    nem --renderer-process-limit: a WA Web estoura no boot e o
+  //    contexto de execução morre ("Execution context was destroyed").
   '--disable-extensions',
   '--disable-default-apps',
   '--disable-sync',
-  '--disable-translate',
   '--disable-background-networking',
   '--disable-component-update',
   '--disable-client-side-phishing-detection',
@@ -44,11 +46,8 @@ const PUPPETEER_ARGS = Object.freeze([
   '--no-default-browser-check',
   '--hide-scrollbars',
   '--window-size=800,600',
-  // Menos processos renderer = menos RAM (1 aba só, não precisa isolar sites).
-  '--disable-features=site-per-process,Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints',
-  '--renderer-process-limit=2',
-  // Teto do heap V8 DENTRO do Chromium (o maior consumidor do container).
-  '--js-flags=--max-old-space-size=256',
+  // Desliga só features acessórias (sem mexer em isolamento de site).
+  '--disable-features=Translate,BackForwardCache,OptimizationHints,MediaRouter',
   // Cache de disco pequeno (o webVersionCache local já cobre o grosso).
   '--disk-cache-size=33554432',
   '--media-cache-size=16777216',
