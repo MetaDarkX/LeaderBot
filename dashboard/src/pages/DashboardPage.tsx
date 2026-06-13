@@ -10,7 +10,6 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { QuickNav } from '@/components/layout/QuickNav';
 import { useState } from 'react';
 
 export function DashboardPage() {
@@ -55,74 +54,97 @@ export function DashboardPage() {
         }
       />
 
-      <ConnectionHero />
+      {/* Bento: bloco de conexão domina, "Respondidas" é o número-herói,
+          KPIs secundários uniformes e as ignoradas agrupadas. */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <div className="col-span-2 lg:col-span-4">
+          <ConnectionHero />
+        </div>
+        <KpiCard
+          className="col-span-2 lg:col-span-2"
+          size="hero"
+          label="Respondidas"
+          value={answered}
+          foot={recv ? `${fmtPct(answered, recv)} das recebidas` : 'aguardando dados'}
+          accent="accent"
+          delay={0.04}
+        />
+
+        <KpiCard
+          className="col-span-1 lg:col-span-2"
+          label="Recebidas"
+          value={recv}
+          foot="desde o boot"
+          delay={0.06}
+        />
+        <KpiCard
+          className="col-span-1 lg:col-span-2"
+          label="Cache hits"
+          value={s.cacheHits}
+          foot={cacheRate}
+          accent="info"
+          delay={0.08}
+        />
+        <KpiCard
+          className="col-span-1 lg:col-span-2"
+          label="IA chamadas"
+          value={s.aiCalls}
+          foot="ao provedor"
+          accent="violet"
+          delay={0.1}
+        />
+
+        <KpiCard
+          className="col-span-1 lg:col-span-2"
+          label="Fallbacks"
+          value={s.fallbacks}
+          foot="respostas padrão"
+          accent="danger"
+          delay={0.12}
+        />
+        <KpiCard
+          className="col-span-2 lg:col-span-2"
+          label="Latência média"
+          value={fmtMs(s.avgLatencyMs)}
+          foot={`${fmtMs(s.lastLatencyMs)} última`}
+          delay={0.14}
+        />
+        <div className="col-span-2 flex flex-col justify-center gap-2 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/70 p-4 lg:col-span-2">
+          <span className="text-xs font-medium text-muted">Ignoradas</span>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              ['Pausa', s.ignoredByPause],
+              ['Cooldown', s.ignoredByCooldown],
+              ['Filtros', s.ignoredByFilter],
+            ].map(([label, val]) => (
+              <div key={String(label)}>
+                <strong className="block text-lg tabular-nums text-ink-dim">{val}</strong>
+                <span className="text-[11px] text-muted">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <Link
         to="/mensagens"
-        className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-accent/25 bg-accent-soft/40 p-4 transition-colors hover:border-accent/40 hover:bg-accent-soft/60 sm:mt-6"
+        className="mt-3 flex items-center gap-3 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/70 p-4 transition-colors hover:border-accent/40 hover:bg-accent-soft/30"
       >
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
-          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-accent-soft text-accent">
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </span>
         <span className="min-w-0 flex-1">
           <span className="font-semibold text-ink">Conversas do WhatsApp</span>
           <span className="mt-0.5 block text-sm text-muted">
-            Ver chats, histórico e enviar mensagens sem sair do painel
+            Chats, histórico e envio sem sair do painel
           </span>
         </span>
         <span className="shrink-0 text-sm font-medium text-accent">Abrir →</span>
       </Link>
 
-      <section className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard label="Recebidas" value={recv} foot="total desde o boot" delay={0.02} />
-        <KpiCard
-          label="Respondidas"
-          value={answered}
-          foot={recv ? fmtPct(answered, recv) : 'aguardando dados'}
-          accent="accent"
-          delay={0.04}
-        />
-        <KpiCard label="Cache hits" value={s.cacheHits} foot={cacheRate} accent="info" delay={0.06} />
-        <KpiCard
-          label="IA chamadas"
-          value={s.aiCalls}
-          foot="requisições ao provedor"
-          accent="violet"
-          delay={0.08}
-        />
-        <KpiCard
-          label="Fallbacks"
-          value={s.fallbacks}
-          foot="respostas padrão usadas"
-          accent="danger"
-          delay={0.1}
-        />
-        <KpiCard
-          label="Latência média"
-          value={fmtMs(s.avgLatencyMs)}
-          foot={`${fmtMs(s.lastLatencyMs)} última`}
-          delay={0.12}
-        />
-      </section>
-
-      <section className="mt-4 grid grid-cols-3 gap-3 rounded-[var(--radius-md)] border border-border-soft bg-surface-1/60 p-4 text-center sm:max-w-lg">
-        {[
-          ['Pausa', s.ignoredByPause],
-          ['Cooldown', s.ignoredByCooldown],
-          ['Filtradas', s.ignoredByFilter],
-        ].map(([label, val]) => (
-          <div key={String(label)} className="rounded-[var(--radius-sm)] bg-surface-2/40 px-2 py-1">
-            <span className="block text-[11px] text-muted">{label}</span>
-            <strong className="text-lg tabular-nums text-ink">{val}</strong>
-          </div>
-        ))}
-      </section>
-
-      <QuickNav />
-
-      <Card className="mt-4 sm:mt-6">
+      <Card className="mt-3">
         <CardHeader
           title="Atividade recente"
           description="Últimas mensagens vistas pelo bot."

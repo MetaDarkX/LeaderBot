@@ -99,8 +99,3 @@ export function navIndexByPath(pathname: string): number {
   const item = navItemByPath(pathname);
   return item ? NAV_ITEMS.indexOf(item) : 0;
 }
-
-export const QUICK_LINKS = NAV_ITEMS.filter((n) => n.id !== 'painel').map((n) => ({
-  ...n,
-  icon: n.id,
-}));
